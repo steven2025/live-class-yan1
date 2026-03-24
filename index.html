@@ -130,26 +130,33 @@
   const langSelect = document.getElementById('lang');
   const historyDiv = document.getElementById('history');
 
-  // 统一的云函数 URL
-  const API_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
+  // 按当前线上部署拆分为 3 个云函数 URL，此页只需要 getUserSig
+  const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
 
-  // 调用云函数（统一入口）
-  async function callCloudFunction(action, params) {
-    const response = await fetch(API_URL, {
+  async function postJson(url, params) {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...params })
+      body: JSON.stringify(params)
     });
-    const data = await response.json();
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (e) {
+      const text = await response.text().catch(() => '');
+      throw new Error(text || `HTTP ${response.status}`);
+    }
+
     if (!response.ok || data.error) {
-      throw new Error(data.error || `HTTP ${response.status}`);
+      throw new Error(data?.error || `HTTP ${response.status}`);
     }
     return data;
   }
 
   // 获取 UserSig
   async function getUserSig(userId, roomId) {
-    const data = await callCloudFunction('getUserSig', { userId, roomId });
+    const data = await postJson(GET_USERSIG_URL, { userId, roomId });
     if (!data.userSig) throw new Error('获取 UserSig 失败');
     return data.userSig;
   }

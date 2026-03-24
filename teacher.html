@@ -124,8 +124,10 @@
   let targetLanguagesSelect = document.getElementById('targetLanguages');
   let statusDiv = document.getElementById('status');
 
-  // 统一的云函数 URL
-  const API_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
+  // 按当前线上部署拆分为 3 个云函数 URL
+  const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
+  const START_AI_URL = 'https://1311686407-jsivftfavn.ap-guangzhou.tencentscf.com';
+  const STOP_AI_URL = 'https://1311686407-0hao9da3yt.ap-guangzhou.tencentscf.com';
 
   // 辅助函数
   function escapeHtml(str) {
@@ -151,37 +153,44 @@
     return Math.floor(10000 + Math.random() * 90000).toString();
   }
 
-  // 调用云函数（统一入口）
-  async function callCloudFunction(action, params) {
-    const response = await fetch(API_URL, {
+  async function postJson(url, params) {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...params })
+      body: JSON.stringify(params)
     });
-    const data = await response.json();
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (e) {
+      const text = await response.text().catch(() => '');
+      throw new Error(text || `HTTP ${response.status}`);
+    }
+
     if (!response.ok || data.error) {
-      throw new Error(data.error || `HTTP ${response.status}`);
+      throw new Error(data?.error || `HTTP ${response.status}`);
     }
     return data;
   }
 
   // 获取 UserSig
   async function getUserSig(userId, roomId) {
-    const data = await callCloudFunction('getUserSig', { userId, roomId });
+    const data = await postJson(GET_USERSIG_URL, { userId, roomId });
     if (!data.userSig) throw new Error('获取 UserSig 失败');
     return data.userSig;
   }
 
   // 启动 AI 转录任务
   async function startAITranscription(roomId, userId, targetLanguages) {
-    const data = await callCloudFunction('startAITranscription', { roomId, userId, targetLanguages });
+    const data = await postJson(START_AI_URL, { roomId, userId, targetLanguages });
     if (!data.taskId) throw new Error('启动转录失败');
     return data.taskId;
   }
 
   // 停止 AI 转录任务
   async function stopAITranscription(taskId) {
-    await callCloudFunction('stopAITranscription', { taskId });
+    await postJson(STOP_AI_URL, { taskId });
   }
 
   // 开始上课
@@ -203,6 +212,7 @@
         userId,
         userSig,
       });
+      trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
       // 开始推流（麦克风）
       await trtc.startLocalAudio();
       statusDiv.textContent = '已进入房间，正在启动AI转录...';
@@ -284,6 +294,19 @@
     }
   }
 
+  function buildStudentUrl(sessionCode) {
+    const url = new URL(window.location.href);
+    const currentFile = url.pathname.split('/').pop() || '';
+    if (/teacher\.html?$/i.test(currentFile)) {
+      url.pathname = url.pathname.replace(/teacher\.html?$/i, 'index.html');
+    } else if (!/index\.html?$/i.test(currentFile)) {
+      url.pathname = url.pathname.replace(/[^/]*$/, 'index.html');
+    }
+    url.search = `?room=${encodeURIComponent(sessionCode)}`;
+    url.hash = '';
+    return url.toString();
+  }
+
   // 新课程
   async function createNewSession() {
     const newRoomId = generateRoomId();
@@ -291,8 +314,7 @@
     localStorage.setItem('teacher_session', currentSession);
     currentSessionCodeSpan.textContent = currentSession;
     // 生成学生端链接（根路径，适配 index.html）
-    const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
-    const studentUrl = `${baseUrl}?room=${currentSession}`;
+    const studentUrl = buildStudentUrl(currentSession);
     studentLinkSpan.textContent = studentUrl;
     sessionInfoDiv.style.display = 'block';
     generateQRCodeWithSession(currentSession);
@@ -304,8 +326,7 @@
 
   // 二维码生成
   function generateQRCodeWithSession(sessionCode) {
-    const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
-    const studentUrl = `${baseUrl}?room=${sessionCode}`;
+    const studentUrl = buildStudentUrl(sessionCode);
     const qrDesc = document.getElementById('qrDesc');
     const qrContainer = document.getElementById('qrcode');
     const studentUrlTextDiv = document.getElementById('studentUrlText');
