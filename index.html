@@ -132,6 +132,8 @@
 
   // 按当前线上部署拆分为 3 个云函数 URL，此页只需要 getUserSig
   const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
+  const SDKAPPID =1600133369
+
 
   async function postJson(url, params) {
     const response = await fetch(url, {
@@ -189,6 +191,7 @@
       const userSig = await getUserSig(userId, room);
       trtc = TRTC.create();
       await trtc.enterRoom({
+        sdkAppId: SDKAPPID,
         roomId: parseInt(room, 10),
         scene: 'rtc',
         userId,

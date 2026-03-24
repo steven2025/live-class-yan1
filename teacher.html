@@ -128,6 +128,8 @@
   const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
   const START_AI_URL = 'https://1311686407-jsivftfavn.ap-guangzhou.tencentscf.com';
   const STOP_AI_URL = 'https://1311686407-0hao9da3yt.ap-guangzhou.tencentscf.com';
+  const SDKAPPID = 1600133369
+
 
   // 辅助函数
   function escapeHtml(str) {
@@ -207,11 +209,12 @@
       const userSig = await getUserSig(userId, roomId);
       trtc = TRTC.create();
       await trtc.enterRoom({
-        roomId,
-        scene: 'rtc',
-        userId,
-        userSig,
-      });
+       sdkAppId: SDKAPPID,
+       roomId,
+       scene: 'rtc',
+       userId,
+       userSig,
+  });
       trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
       // 开始推流（麦克风）
       await trtc.startLocalAudio();
@@ -395,7 +398,7 @@
     sessionInfoDiv.style.display = 'block';
     currentSessionCodeSpan.textContent = currentSession;
     const baseUrl = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
-    const defaultLink = `${baseUrl}?room=${currentSession}`;
+    const defaultLink = buildStudentUrl(currentSession);
     studentLinkSpan.textContent = defaultLink;
     generateQRCodeWithSession(currentSession);
     startBtn.disabled = false;
