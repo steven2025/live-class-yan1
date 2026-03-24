@@ -6,7 +6,6 @@
   <title>课堂字幕 - 学生端 (TRTC)</title>
   <script src="https://web.sdk.qcloud.com/trtc/webrtc/v5/dist/trtc.js"></script>
   <style>
-    /* 样式与原 index.html 相同，此处仅保留核心，实际可复制原样式 */
     * { box-sizing: border-box; user-select: none; }
     body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
     .fullscreen-mode { padding: 20px 16px 88px; transition: all 0.2s; }
@@ -44,7 +43,7 @@
     .preview-area h4 { margin-top: 0; margin-bottom: 12px; color: #94a3b8; font-size: 14px; }
     .review-loading { text-align: center; padding: 20px; color: #94a3b8; }
     @media (max-width: 799px), (max-height: 599px) { .review-panel { display: none; } }
-    /* 悬浮窗样式（略，可复用原有） */
+    /* 悬浮窗样式（略，可自行补充） */
   </style>
 </head>
 <body>
@@ -131,6 +130,30 @@
   const langSelect = document.getElementById('lang');
   const historyDiv = document.getElementById('history');
 
+  // 统一的云函数 URL
+  const API_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
+
+  // 调用云函数（统一入口）
+  async function callCloudFunction(action, params) {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...params })
+    });
+    const data = await response.json();
+    if (!response.ok || data.error) {
+      throw new Error(data.error || `HTTP ${response.status}`);
+    }
+    return data;
+  }
+
+  // 获取 UserSig
+  async function getUserSig(userId, roomId) {
+    const data = await callCloudFunction('getUserSig', { userId, roomId });
+    if (!data.userSig) throw new Error('获取 UserSig 失败');
+    return data.userSig;
+  }
+
   // 如果URL没有room参数，显示输入框
   if (!roomId) {
     sessionInputArea.style.display = 'block';
@@ -172,18 +195,6 @@
       console.error(err);
       statusDiv.textContent = '连接失败: ' + err.message;
     }
-  }
-
-  async function getUserSig(userId, roomId) {
-    // 调用云函数，URL需替换
-    const response = await fetch('https://1311686407-hl8x6eksux.ap-guangzhou.tencentscf.com', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, roomId })
-    });
-    const data = await response.json();
-    if (!data.userSig) throw new Error('获取 UserSig 失败');
-    return data.userSig;
   }
 
   function onCustomMessage(event) {
