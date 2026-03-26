@@ -256,31 +256,6 @@
       startBtn.disabled = false;
       stopBtn.disabled = true;
     }
-  });
-      trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
-      // 开始推流（麦克风）
-      await trtc.startLocalAudio();
-      statusDiv.textContent = '已进入房间，正在启动AI转录...';
-      // 获取选中的翻译语言列表
-      const selectedLangs = Array.from(targetLanguagesSelect.selectedOptions).map(opt => opt.value);
-      if (selectedLangs.length === 0) {
-        alert('请至少选择一种翻译语言');
-        await trtc.exitRoom();
-        return;
-      }
-      currentTaskId = await startAITranscription(roomId, userId, selectedLangs);
-      isTeaching = true;
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
-      statusDiv.textContent = '🎙️ 上课中... AI转录已启动';
-    } catch (err) {
-      console.error(err);
-      statusDiv.textContent = '启动失败: ' + err.message;
-      if (trtc) await trtc.exitRoom().catch(e => console.warn(e));
-      trtc = null;
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-    }
   }
 
   // 结束课程
@@ -316,7 +291,7 @@
     const message = {
       source_text: text,
       translations: {
-        [firstSelectedLang]: "Translation placeholder",
+        [firstSelectedLang]: 'Translation placeholder',
       }
     };
 
@@ -339,7 +314,6 @@
       const msg = typeof data === 'string' ? JSON.parse(data) : data;
       console.log('CUSTOM_MESSAGE raw:', msg);
 
-      // 兼容旧格式：{ source_text, translations }
       if (msg && msg.source_text) {
         const translations = msg.translations || {};
         const firstLang = Object.keys(translations)[0];
@@ -358,7 +332,6 @@
         return;
       }
 
-      // 兼容 TRTC 新格式：{ payload: { text, translation_text, translation_language } }
       const payload = msg?.payload || {};
       const sourceText = payload.text || payload.source_text || '';
       const translationText = payload.translation_text || '';
