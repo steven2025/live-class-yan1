@@ -243,20 +243,54 @@
   function onCustomMessage(event) {
     const { data } = event;
     try {
-      const msg = JSON.parse(data);
-      if (!msg.source_text) return;
+      const msg = typeof data === 'string' ? JSON.parse(data) : data;
+      console.log('STUDENT CUSTOM_MESSAGE raw:', msg);
+
+      if (msg && msg.source_text) {
+        currentSubtitle = {
+          source_text: msg.source_text,
+          translations: msg.translations || {}
+        };
+
+        sourceDiv.textContent = msg.source_text;
+        nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '';
+
+        historyList.unshift({
+          source: msg.source_text,
+          translation: getPreferredTranslation(currentSubtitle.translations) || '',
+          timestamp: new Date().toLocaleTimeString(),
+          translations: currentSubtitle.translations
+        });
+        if (historyList.length > 50) historyList.pop();
+        renderHistory();
+        return;
+      }
+
+      const payload = msg && msg.payload ? msg.payload : {};
+      const sourceText = payload.text || payload.source_text || '';
+      const translationText = payload.translation_text || '';
+      const translationLanguage = payload.translation_language || '';
+
+      if (!sourceText) return;
+
+      const translations = {};
+      if (translationLanguage && translationText) {
+        translations[translationLanguage] = translationText;
+      } else if (translationText) {
+        translations[targetLang] = translationText;
+      }
 
       currentSubtitle = {
-        source_text: msg.source_text,
-        translations: msg.translations || {}
+        source_text: sourceText,
+        translations: translations
       };
 
-      sourceDiv.textContent = msg.source_text;
-      nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '';
+      sourceDiv.textContent = sourceText;
+      nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || translationText || '';
 
       historyList.unshift({
-        source: msg.source_text,
-        translation: getPreferredTranslation(currentSubtitle.translations) || '',
+        source: sourceText,
+        translation: translationText || '',
         timestamp: new Date().toLocaleTimeString(),
         translations: currentSubtitle.translations
       });
