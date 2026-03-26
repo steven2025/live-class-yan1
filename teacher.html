@@ -189,12 +189,12 @@
   }
 
   // 启动 AI 转录任务
-  async function startAITranscription(roomId, userId, userSig, targetLanguages) {
-    const data = await postJson(START_AI_URL, { roomId, userId, userSig, targetLanguages });
+  async function startAITranscription(roomId, userId, targetLanguages) {
+    const data = await postJson(START_AI_URL, { roomId, userId, targetLanguages });
     console.log('START_AI raw response:', data);
     if (!data || !data.taskId) {
       throw new Error('启动转录失败: ' + JSON.stringify(data));
-    }
+     }
     return data.taskId;
   }
 
