@@ -45,7 +45,6 @@
         <select id="targetLanguages" multiple size="3" style="background:#1e293b; border:1px solid #334155; color:white; padding:6px; border-radius:16px;">
           <option value="en" selected>English</option>
           <option value="th">ไทย</option>
-          <option value="lo">ພາສາລາວ</option>
           <option value="vi">Tiếng Việt</option>
           <option value="id">Bahasa Indonesia</option>
           <option value="ms">Bahasa Melayu</option>
@@ -53,11 +52,12 @@
           <option value="ja">日本語</option>
           <option value="ru">Русский</option>
           <option value="ko">한국어</option>
-          <option value="ur">اردو</option>
           <option value="de">Deutsch</option>
           <option value="es">Español</option>
           <option value="pt">Português</option>
           <option value="zh">中文</option>
+          <option value="it">Italiano</option>
+          <option value="ar">العربية</option>
         </select>
         <input type="text" id="manualText" placeholder="手动输入文字 / Type here">
         <button id="manualSendBtn" style="background:#3b82f6;">📤 发送 / Send</button>
@@ -102,7 +102,8 @@ let isTeaching = false;
 let currentSession = localStorage.getItem('teacher_session') || null;
 let currentTaskId = null;
 let localHistory = [];
-let currentSubtitleState = { sourceText: '', translations: {}, ended: true, roundId: '' };
+let currentSubtitleState = { roundId: 'initial', sourceText: '', translations: {}, ended: true };
+let subtitleRoundStore = new Map();
 
 let sourceTextDiv = document.getElementById('sourceText');
 let translatedTextDiv = document.getElementById('translatedText');
@@ -124,6 +125,35 @@ const START_AI_URL = 'https://1311686407-jpi1vwtz9x.ap-guangzhou.tencentscf.com'
 const STOP_AI_URL = 'https://1311686407-0hao9da3yt.ap-guangzhou.tencentscf.com';
 const SDKAPPID = 1600133369;
 
+const SUPPORTED_TRANSLATION_LANGS = ['zh','en','es','pt','fr','de','ru','ar','ja','ko','vi','ms','id','it','th'];
+
+function mergeTranslationMap(target, candidate) {
+  if (!candidate || typeof candidate !== 'object') return target;
+  Object.entries(candidate).forEach(function(entry) {
+    const lang = String(entry[0] || '').trim();
+    const text = entry[1];
+    if (!lang) return;
+    if (typeof text === 'string' && text.trim()) {
+      target[lang] = text.trim();
+      return;
+    }
+    if (text && typeof text === 'object') {
+      const nested = [text.text, text.translation_text, text.translationText, text.value, text.target_text, text.targetText].find(function(v) {
+        return typeof v === 'string' && v.trim();
+      });
+      if (nested) target[lang] = nested.trim();
+    }
+  });
+  return target;
+}
+
+
+window.addEventListener('unhandledrejection', function(event) {
+  console.error('UNHANDLED_REJECTION', event.reason);
+});
+window.addEventListener('error', function(event) {
+  console.error('WINDOW_ERROR', event.message, event.filename, event.lineno, event.error);
+});
 
 function getTeacherPreviewTranslation(translations) {
   const map = translations || {};
@@ -133,17 +163,20 @@ function getTeacherPreviewTranslation(translations) {
   return (preferred && map[preferred]) || Object.values(map)[0] || '';
 }
 
-function maybeParseJson(value) {
-  if (typeof value !== 'string') return value;
-  const trimmed = value.trim();
-  if (!trimmed) return value;
-  const maybeJson = (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'));
-  if (!maybeJson) return value;
+
+function safeStringify(value) {
   try {
-    return JSON.parse(trimmed);
+    return JSON.stringify(value);
   } catch (e) {
-    return value;
+    return String(value);
   }
+}
+
+function pickFirstNonEmptyString(values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return '';
 }
 
 function decodeCustomMessageData(data) {
@@ -151,14 +184,14 @@ function decodeCustomMessageData(data) {
   try {
     if (data instanceof ArrayBuffer) {
       const decoded = new TextDecoder().decode(data);
-      return maybeParseJson(decoded);
+      return decoded ? JSON.parse(decoded) : null;
     }
     if (ArrayBuffer.isView(data)) {
       const decoded = new TextDecoder().decode(data);
-      return maybeParseJson(decoded);
+      return decoded ? JSON.parse(decoded) : null;
     }
     if (typeof data === 'string') {
-      return maybeParseJson(data);
+      return JSON.parse(data);
     }
     return data;
   } catch (e) {
@@ -167,72 +200,112 @@ function decodeCustomMessageData(data) {
   }
 }
 
-function normalizeAiSubtitleMessage(raw) {
-  let msg = raw;
-  for (let depth = 0; depth < 3; depth++) {
-    msg = maybeParseJson(msg);
-    if (!msg || typeof msg !== 'object') break;
-
-    if (typeof msg.payload === 'string') {
-      msg.payload = maybeParseJson(msg.payload);
-    }
-    for (const key of ['data', 'message', 'result', 'content', 'body']) {
-      if (typeof msg[key] === 'string') {
-        msg[key] = maybeParseJson(msg[key]);
-      }
-      if (msg[key] && typeof msg[key] === 'object' && typeof msg[key].payload === 'string') {
-        msg[key].payload = maybeParseJson(msg[key].payload);
-      }
-    }
-
-    const candidates = [msg, msg.data, msg.message, msg.result, msg.content, msg.body].filter(Boolean);
-    for (const candidate of candidates) {
-      const payload = candidate && typeof candidate.payload === 'object' ? candidate.payload : {};
-      const sourceText = candidate.source_text || candidate.sourceText || candidate.text || payload.text || payload.source_text || payload.sourceText || '';
-      const translationText = candidate.translation_text || candidate.translationText || candidate.translation || payload.translation_text || payload.translationText || payload.translation || '';
-      const translationLanguage = candidate.translation_language || candidate.translationLanguage || candidate.lang || payload.translation_language || payload.translationLanguage || payload.lang || '';
-      const translations = candidate.translations || payload.translations || {};
-      const hasTranslations = translations && typeof translations === 'object' && Object.keys(translations).length > 0;
-      if (sourceText || translationText || hasTranslations) {
-        return {
-          sourceText: String(sourceText || ''),
-          translationText: String(translationText || ''),
-          translationLanguage: String(translationLanguage || ''),
-          translations: hasTranslations ? Object.assign({}, translations) : {},
-          end: !!(payload.end ?? candidate.end),
-          roundId: String(payload.roundid || payload.roundId || candidate.roundid || candidate.roundId || ''),
-          raw: candidate
-        };
-      }
-    }
-
-    if (msg.data && typeof msg.data === 'object' && !Array.isArray(msg.data)) {
-      msg = msg.data;
-      continue;
-    }
-    break;
+function normalizeSubtitleMessage(msg) {
+  const payload = (msg && typeof msg === 'object' && msg.payload && typeof msg.payload === 'object') ? msg.payload : {};
+  const typeValue = (msg && msg.type != null) ? Number(msg.type) : NaN;
+  const type = Number.isFinite(typeValue) ? typeValue : 0;
+  const sourceText = pickFirstNonEmptyString([
+    payload.text,
+    payload.source_text,
+    payload.sourceText,
+    payload.original_text,
+    payload.originalText,
+    msg && msg.source_text,
+    msg && msg.text
+  ]);
+  const translationText = pickFirstNonEmptyString([
+    payload.translation_text,
+    payload.translationText,
+    payload.translated_text,
+    payload.translatedText,
+    payload.target_text,
+    payload.targetText,
+    msg && msg.translation_text,
+    msg && msg.translationText
+  ]);
+  const translationLanguage = pickFirstNonEmptyString([
+    payload.translation_language,
+    payload.translationLanguage,
+    payload.target_language,
+    payload.targetLanguage,
+    payload.lang,
+    msg && msg.translation_language
+  ]);
+  const translations = mergeTranslationMap(
+    mergeTranslationMap({}, payload.translations),
+    (msg && msg.translations)
+  );
+  if (translationText) {
+    translations[translationLanguage || 'default'] = translationText;
   }
+  const roundId = pickFirstNonEmptyString([
+    payload.roundid,
+    payload.roundId,
+    payload.id,
+    msg && msg.roundid,
+    msg && msg.roundId
+  ]) || 'default';
+  const endFlag = payload.end;
+  const end = typeof endFlag === 'boolean' ? endFlag : !!(payload.is_final || payload.final || (msg && msg.end));
+  const sender = pickFirstNonEmptyString([msg && msg.sender, msg && msg.userId, payload.sender]);
+  const statusMessage = pickFirstNonEmptyString([
+    payload.message,
+    payload.status,
+    payload.metric,
+    payload.code != null ? String(payload.code) : ''
+  ]);
 
   return {
-    sourceText: '',
-    translationText: '',
-    translationLanguage: '',
-    translations: {},
-    end: false,
-    roundId: '',
-    raw: raw
+    raw: msg,
+    payload,
+    type,
+    roundId,
+    sourceText,
+    translationText,
+    translationLanguage,
+    translations,
+    end,
+    sender,
+    statusMessage,
+    isSubtitleLike: type === 10000 || !!sourceText || !!translationText
   };
+}
+
+function mergeSubtitleRound(store, normalized) {
+  const roundId = normalized.roundId || 'default';
+  const existing = store.get(roundId) || { roundId: roundId, sourceText: '', translations: {}, ended: false, updatedAt: 0 };
+  const merged = {
+    roundId: roundId,
+    sourceText: normalized.sourceText || existing.sourceText || '',
+    translations: Object.assign({}, existing.translations),
+    ended: normalized.end,
+    updatedAt: Date.now()
+  };
+
+  mergeTranslationMap(merged.translations, normalized.translations);
+  if (normalized.translationText) {
+    merged.translations[normalized.translationLanguage || 'default'] = normalized.translationText;
+  }
+
+  if (!normalized.sourceText && !normalized.translationText) {
+    merged.ended = existing.ended;
+  }
+
+  store.set(roundId, merged);
+  return merged;
 }
 
 function renderCurrentTeacherSubtitle() {
   sourceTextDiv.textContent = currentSubtitleState.sourceText || '等待语音输入...';
-  translatedTextDiv.textContent = getTeacherPreviewTranslation(currentSubtitleState.translations) || '（暂无翻译）';
+  const previewTranslation = getTeacherPreviewTranslation(currentSubtitleState.translations) || '';
+  translatedTextDiv.textContent = previewTranslation || '（暂无翻译，若持续没有译文，请检查云函数是否把 targetLanguages 传给 StartAITranscription 的 TranslationConfig.TargetLanguages）';
 }
 
-function pushTeacherHistorySnapshot() {
-  const source = (currentSubtitleState.sourceText || '').trim();
+function pushTeacherHistorySnapshot(snapshot) {
+  const current = snapshot || currentSubtitleState;
+  const source = (current.sourceText || '').trim();
   if (!source) return;
-  const translation = getTeacherPreviewTranslation(currentSubtitleState.translations) || '';
+  const translation = getTeacherPreviewTranslation(current.translations) || '';
   const previous = localHistory[0];
   if (previous && previous.source === source) {
     previous.translation = translation;
@@ -299,13 +372,15 @@ async function getUserSig(userId, roomId) {
 
 // 当前后端仍然要求收到 userSig，所以这里继续传
 async function startAITranscription(roomId, userId, userSig, targetLanguages) {
+  const filteredTargetLanguages = (targetLanguages || []).filter(function(lang) { return SUPPORTED_TRANSLATION_LANGS.includes(lang); });
+  console.log('START_AI request JSON:', safeStringify({ roomId: roomId, userId: userId, targetLanguages: filteredTargetLanguages }));
   const data = await postJson(START_AI_URL, {
     roomId: roomId,
     userId: userId,
     userSig: userSig,
-    targetLanguages: targetLanguages
+    targetLanguages: filteredTargetLanguages
   });
-  console.log('START_AI raw response:', data);
+  console.log('START_AI raw response JSON:', safeStringify(data));
   if (!data || !data.taskId) {
     throw new Error('启动转录失败: ' + JSON.stringify(data));
   }
@@ -348,6 +423,8 @@ async function startClass() {
 
     const selectedLangs = Array.from(targetLanguagesSelect.selectedOptions).map(function(opt) {
       return opt.value;
+    }).filter(function(lang) {
+      return SUPPORTED_TRANSLATION_LANGS.includes(lang);
     });
 
     if (selectedLangs.length === 0) {
@@ -421,48 +498,40 @@ async function sendManualSubtitle() {
   manualText.value = '';
 }
 
+
 function onCustomMessage(event) {
-  const decoded = decodeCustomMessageData(event.data);
-  console.log('CUSTOM_MESSAGE decoded:', decoded);
-  console.log('CUSTOM_MESSAGE decoded json:', JSON.stringify(decoded));
-  if (!decoded) return;
+  const msg = decodeCustomMessageData(event.data);
+  if (!msg) return;
 
-  const normalized = normalizeAiSubtitleMessage(decoded);
-  console.log('CUSTOM_MESSAGE normalized:', normalized);
+  console.log('CUSTOM_MESSAGE decoded JSON:', safeStringify(msg));
+  const normalized = normalizeSubtitleMessage(msg);
+  console.log('CUSTOM_MESSAGE normalized JSON:', safeStringify({
+    type: normalized.type,
+    roundId: normalized.roundId,
+    sender: normalized.sender,
+    sourceText: normalized.sourceText,
+    translationText: normalized.translationText,
+    translationLanguage: normalized.translationLanguage,
+    end: normalized.end,
+    statusMessage: normalized.statusMessage
+  }));
 
-  if (!normalized.sourceText && !normalized.translationText && !Object.keys(normalized.translations || {}).length) {
-    console.warn('CUSTOM_MESSAGE schema not matched:', JSON.stringify(decoded));
-    statusDiv.textContent = '🎙️ 上课中... 已收到AI消息，但字段结构未命中';
+  if (!normalized.isSubtitleLike) {
+    if (normalized.type === 10001) {
+      statusDiv.textContent = '🎙️ 上课中... AI状态回调：' + (normalized.statusMessage || '已收到');
+    } else if (normalized.type === 10030) {
+      statusDiv.textContent = '⚠️ AI服务错误：' + (normalized.statusMessage || safeStringify(normalized.payload));
+    }
     return;
   }
 
-  if (normalized.roundId && currentSubtitleState.roundId && normalized.roundId !== currentSubtitleState.roundId && !normalized.sourceText) {
-    currentSubtitleState.translations = {};
-  }
-  if (normalized.roundId) {
-    currentSubtitleState.roundId = normalized.roundId;
-  }
-
-  if (normalized.sourceText) {
-    if (currentSubtitleState.ended && normalized.sourceText !== currentSubtitleState.sourceText) {
-      currentSubtitleState.translations = {};
-    }
-    currentSubtitleState.sourceText = normalized.sourceText;
-  }
-
-  if (normalized.translationText) {
-    currentSubtitleState.translations[normalized.translationLanguage || 'default'] = normalized.translationText;
-  }
-  if (normalized.translations && Object.keys(normalized.translations).length) {
-    currentSubtitleState.translations = Object.assign({}, currentSubtitleState.translations, normalized.translations);
-  }
-
-  currentSubtitleState.ended = !!normalized.end;
+  const merged = mergeSubtitleRound(subtitleRoundStore, normalized);
+  currentSubtitleState = merged;
   renderCurrentTeacherSubtitle();
   statusDiv.textContent = '🎙️ 上课中... 正在接收字幕';
 
-  if (normalized.end) {
-    pushTeacherHistorySnapshot();
+  if (merged.ended) {
+    pushTeacherHistorySnapshot(merged);
   }
 }
 
