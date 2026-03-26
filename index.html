@@ -114,7 +114,7 @@
   let roomId = params.get('room');
   let isConnected = false;
   let trtc = null;
-  let currentSubtitle = { source_text: '', translations: {}, ended: true };
+  let currentSubtitle = { source_text: '', translations: {}, ended: true, roundId: '' };
   let historyList = [];
   let targetLang = localStorage.getItem('student_lang') || 'en';
   let reviewMode = 'teacher';
@@ -152,25 +152,95 @@
   const SDKAPPID = 1600133369;
 
 
+  function maybeParseJson(value) {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
+    if (!trimmed) return value;
+    const maybeJson = (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'));
+    if (!maybeJson) return value;
+    try {
+      return JSON.parse(trimmed);
+    } catch (e) {
+      return value;
+    }
+  }
+
   function decodeCustomMessageData(data) {
     if (!data) return null;
     try {
       if (data instanceof ArrayBuffer) {
         const decoded = new TextDecoder().decode(data);
-        return decoded ? JSON.parse(decoded) : null;
+        return maybeParseJson(decoded);
       }
       if (ArrayBuffer.isView(data)) {
         const decoded = new TextDecoder().decode(data);
-        return decoded ? JSON.parse(decoded) : null;
+        return maybeParseJson(decoded);
       }
       if (typeof data === 'string') {
-        return JSON.parse(data);
+        return maybeParseJson(data);
       }
       return data;
     } catch (e) {
       console.warn('STUDENT CUSTOM_MESSAGE decode failed', e, data);
       return null;
     }
+  }
+
+  function normalizeAiSubtitleMessage(raw) {
+    let msg = raw;
+    for (let depth = 0; depth < 3; depth++) {
+      msg = maybeParseJson(msg);
+      if (!msg || typeof msg !== 'object') break;
+
+      if (typeof msg.payload === 'string') {
+        msg.payload = maybeParseJson(msg.payload);
+      }
+      for (const key of ['data', 'message', 'result', 'content', 'body']) {
+        if (typeof msg[key] === 'string') {
+          msg[key] = maybeParseJson(msg[key]);
+        }
+        if (msg[key] && typeof msg[key] === 'object' && typeof msg[key].payload === 'string') {
+          msg[key].payload = maybeParseJson(msg[key].payload);
+        }
+      }
+
+      const candidates = [msg, msg.data, msg.message, msg.result, msg.content, msg.body].filter(Boolean);
+      for (const candidate of candidates) {
+        const payload = candidate && typeof candidate.payload === 'object' ? candidate.payload : {};
+        const sourceText = candidate.source_text || candidate.sourceText || candidate.text || payload.text || payload.source_text || payload.sourceText || '';
+        const translationText = candidate.translation_text || candidate.translationText || candidate.translation || payload.translation_text || payload.translationText || payload.translation || '';
+        const translationLanguage = candidate.translation_language || candidate.translationLanguage || candidate.lang || payload.translation_language || payload.translationLanguage || payload.lang || '';
+        const translations = candidate.translations || payload.translations || {};
+        const hasTranslations = translations && typeof translations === 'object' && Object.keys(translations).length > 0;
+        if (sourceText || translationText || hasTranslations) {
+          return {
+            sourceText: String(sourceText || ''),
+            translationText: String(translationText || ''),
+            translationLanguage: String(translationLanguage || ''),
+            translations: hasTranslations ? Object.assign({}, translations) : {},
+            end: !!(payload.end ?? candidate.end),
+            roundId: String(payload.roundid || payload.roundId || candidate.roundid || candidate.roundId || ''),
+            raw: candidate
+          };
+        }
+      }
+
+      if (msg.data && typeof msg.data === 'object' && !Array.isArray(msg.data)) {
+        msg = msg.data;
+        continue;
+      }
+      break;
+    }
+
+    return {
+      sourceText: '',
+      translationText: '',
+      translationLanguage: '',
+      translations: {},
+      end: false,
+      roundId: '',
+      raw: raw
+    };
   }
 
   function renderCurrentSubtitle() {
@@ -289,42 +359,46 @@
   }
 
   function onCustomMessage(event) {
-    const msg = decodeCustomMessageData(event.data);
-    console.log('STUDENT CUSTOM_MESSAGE decoded:', msg);
-    if (!msg) return;
+    const decoded = decodeCustomMessageData(event.data);
+    console.log('STUDENT CUSTOM_MESSAGE decoded:', decoded);
+    console.log('STUDENT CUSTOM_MESSAGE decoded json:', JSON.stringify(decoded));
+    if (!decoded) return;
 
-    if (msg && msg.source_text) {
-      currentSubtitle.source_text = msg.source_text || currentSubtitle.source_text;
-      currentSubtitle.translations = Object.assign({}, currentSubtitle.translations, msg.translations || {});
-      renderCurrentSubtitle();
-      pushHistorySnapshot();
-      statusDiv.textContent = '已连接课堂 / Connected';
+    const normalized = normalizeAiSubtitleMessage(decoded);
+    console.log('STUDENT CUSTOM_MESSAGE normalized:', normalized);
+
+    if (!normalized.sourceText && !normalized.translationText && !Object.keys(normalized.translations || {}).length) {
+      console.warn('STUDENT CUSTOM_MESSAGE schema not matched:', JSON.stringify(decoded));
+      statusDiv.textContent = '已连接课堂 / AI message received but schema not matched';
       return;
     }
 
-    const payload = msg && msg.payload ? msg.payload : {};
-    const sourceText = payload.text || payload.source_text || '';
-    const translationText = payload.translation_text || '';
-    const translationLanguage = payload.translation_language || '';
+    if (normalized.roundId && currentSubtitle.roundId && normalized.roundId !== currentSubtitle.roundId && !normalized.sourceText) {
+      currentSubtitle.translations = {};
+    }
+    if (normalized.roundId) {
+      currentSubtitle.roundId = normalized.roundId;
+    }
 
-    if (!sourceText && !translationText) return;
-
-    if (sourceText) {
-      if (currentSubtitle.ended && sourceText !== currentSubtitle.source_text) {
+    if (normalized.sourceText) {
+      if (currentSubtitle.ended && normalized.sourceText !== currentSubtitle.source_text) {
         currentSubtitle.translations = {};
       }
-      currentSubtitle.source_text = sourceText;
+      currentSubtitle.source_text = normalized.sourceText;
     }
 
-    if (translationText) {
-      currentSubtitle.translations[translationLanguage || 'default'] = translationText;
+    if (normalized.translationText) {
+      currentSubtitle.translations[normalized.translationLanguage || 'default'] = normalized.translationText;
+    }
+    if (normalized.translations && Object.keys(normalized.translations).length) {
+      currentSubtitle.translations = Object.assign({}, currentSubtitle.translations, normalized.translations);
     }
 
-    currentSubtitle.ended = !!payload.end;
+    currentSubtitle.ended = !!normalized.end;
     renderCurrentSubtitle();
     statusDiv.textContent = '已连接课堂 / Receiving subtitles';
 
-    if (payload.end) {
+    if (normalized.end) {
       pushHistorySnapshot();
     }
   }
