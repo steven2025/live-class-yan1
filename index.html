@@ -114,7 +114,7 @@
   let roomId = params.get('room');
   let isConnected = false;
   let trtc = null;
-  let currentSubtitle = { source_text: '', translations: {} };
+  let currentSubtitle = { source_text: '', translations: {}, ended: true };
   let historyList = [];
   let targetLang = localStorage.getItem('student_lang') || 'en';
   let reviewMode = 'teacher';
@@ -150,6 +150,54 @@
 
   const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
   const SDKAPPID = 1600133369;
+
+
+  function decodeCustomMessageData(data) {
+    if (!data) return null;
+    try {
+      if (data instanceof ArrayBuffer) {
+        const decoded = new TextDecoder().decode(data);
+        return decoded ? JSON.parse(decoded) : null;
+      }
+      if (ArrayBuffer.isView(data)) {
+        const decoded = new TextDecoder().decode(data);
+        return decoded ? JSON.parse(decoded) : null;
+      }
+      if (typeof data === 'string') {
+        return JSON.parse(data);
+      }
+      return data;
+    } catch (e) {
+      console.warn('STUDENT CUSTOM_MESSAGE decode failed', e, data);
+      return null;
+    }
+  }
+
+  function renderCurrentSubtitle() {
+    sourceDiv.textContent = currentSubtitle.source_text || '等待字幕… / Waiting for subtitles...';
+    nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '';
+  }
+
+  function pushHistorySnapshot() {
+    const source = (currentSubtitle.source_text || '').trim();
+    if (!source) return;
+    const translation = getPreferredTranslation(currentSubtitle.translations) || '';
+    const previous = historyList[0];
+    if (previous && previous.source === source) {
+      previous.translation = translation;
+      previous.translations = Object.assign({}, currentSubtitle.translations);
+      previous.timestamp = new Date().toLocaleTimeString();
+    } else {
+      historyList.unshift({
+        source,
+        translation,
+        timestamp: new Date().toLocaleTimeString(),
+        translations: Object.assign({}, currentSubtitle.translations)
+      });
+      if (historyList.length > 50) historyList.pop();
+    }
+    renderHistory();
+  }
 
   function escapeHtml(str) {
     return String(str ?? '')
@@ -224,6 +272,7 @@
       statusDiv.textContent = '正在获取用户签名...';
       const userSig = await getUserSig(userId, room);
       trtc = TRTC.create();
+      trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
       await trtc.enterRoom({
         sdkAppId: SDKAPPID,
         roomId: parseInt(room, 10),
@@ -231,7 +280,6 @@
         userId,
         userSig,
       });
-      trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
       isConnected = true;
       statusDiv.textContent = '已连接课堂 / Connected';
     } catch (err) {
@@ -241,63 +289,43 @@
   }
 
   function onCustomMessage(event) {
-    const { data } = event;
-    try {
-      const msg = typeof data === 'string' ? JSON.parse(data) : data;
-      console.log('STUDENT CUSTOM_MESSAGE raw:', msg);
+    const msg = decodeCustomMessageData(event.data);
+    console.log('STUDENT CUSTOM_MESSAGE decoded:', msg);
+    if (!msg) return;
 
-      if (msg && msg.source_text) {
-        currentSubtitle = {
-          source_text: msg.source_text,
-          translations: msg.translations || {}
-        };
+    if (msg && msg.source_text) {
+      currentSubtitle.source_text = msg.source_text || currentSubtitle.source_text;
+      currentSubtitle.translations = Object.assign({}, currentSubtitle.translations, msg.translations || {});
+      renderCurrentSubtitle();
+      pushHistorySnapshot();
+      statusDiv.textContent = '已连接课堂 / Connected';
+      return;
+    }
 
-        sourceDiv.textContent = msg.source_text;
-        nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '';
+    const payload = msg && msg.payload ? msg.payload : {};
+    const sourceText = payload.text || payload.source_text || '';
+    const translationText = payload.translation_text || '';
+    const translationLanguage = payload.translation_language || '';
 
-        historyList.unshift({
-          source: msg.source_text,
-          translation: getPreferredTranslation(currentSubtitle.translations) || '',
-          timestamp: new Date().toLocaleTimeString(),
-          translations: currentSubtitle.translations
-        });
-        if (historyList.length > 50) historyList.pop();
-        renderHistory();
-        return;
+    if (!sourceText && !translationText) return;
+
+    if (sourceText) {
+      if (currentSubtitle.ended && sourceText !== currentSubtitle.source_text) {
+        currentSubtitle.translations = {};
       }
+      currentSubtitle.source_text = sourceText;
+    }
 
-      const payload = msg && msg.payload ? msg.payload : {};
-      const sourceText = payload.text || payload.source_text || '';
-      const translationText = payload.translation_text || '';
-      const translationLanguage = payload.translation_language || '';
+    if (translationText) {
+      currentSubtitle.translations[translationLanguage || 'default'] = translationText;
+    }
 
-      if (!sourceText) return;
+    currentSubtitle.ended = !!payload.end;
+    renderCurrentSubtitle();
+    statusDiv.textContent = '已连接课堂 / Receiving subtitles';
 
-      const translations = {};
-      if (translationLanguage && translationText) {
-        translations[translationLanguage] = translationText;
-      } else if (translationText) {
-        translations[targetLang] = translationText;
-      }
-
-      currentSubtitle = {
-        source_text: sourceText,
-        translations: translations
-      };
-
-      sourceDiv.textContent = sourceText;
-      nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || translationText || '';
-
-      historyList.unshift({
-        source: sourceText,
-        translation: translationText || '',
-        timestamp: new Date().toLocaleTimeString(),
-        translations: currentSubtitle.translations
-      });
-      if (historyList.length > 50) historyList.pop();
-      renderHistory();
-    } catch (e) {
-      console.warn('解析自定义消息失败', e, data);
+    if (payload.end) {
+      pushHistorySnapshot();
     }
   }
 
