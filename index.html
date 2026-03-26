@@ -10,10 +10,10 @@
     body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
     .fullscreen-mode { padding: 20px 16px 88px; transition: all 0.2s; }
     .fullscreen-mode .wrap { max-width: 900px; margin: 0 auto; }
-    .fullscreen-mode .status { font-size: 13px; color: #94a3b8; margin-bottom: 10px; }
+    .fullscreen-mode .status { font-size: 13px; color: #94a3b8; margin-bottom: 10px; white-space: pre-wrap; }
     .fullscreen-mode .card { background: #111827; border: 1px solid #334155; border-radius: 18px; padding: 18px; }
-    .fullscreen-mode .source { font-weight: 700; margin-bottom: 14px; word-break: break-word; }
-    .fullscreen-mode .native { color: #cbd5e1; word-break: break-word; }
+    .fullscreen-mode .source { font-weight: 700; margin-bottom: 14px; word-break: break-word; min-height: 56px; }
+    .fullscreen-mode .native { color: #cbd5e1; word-break: break-word; min-height: 44px; }
     .fullscreen-mode .toolbar { position: fixed; left: 0; right: 0; bottom: 0; background: #0b1220; border-top: 1px solid #334155; padding: 12px 14px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; z-index: 100; }
     .fullscreen-mode select, .fullscreen-mode button { border-radius: 40px; border: 1px solid #334155; background: #111827; color: #fff; padding: 12px 20px; font-size: 16px; cursor: pointer; }
     .fullscreen-mode .history { margin-top: 16px; }
@@ -35,19 +35,18 @@
     .review-panel { margin-top: 24px; border: 1px solid #334155; border-radius: 18px; background: #111827; overflow: hidden; }
     .review-header { background: #1e293b; padding: 12px 18px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
     .review-header:hover { background: #334155; }
-    .review-content { padding: 18px; border-top: 1px solid #334155; display: block; }
+    .review-content { padding: 18px; border-top: 1px solid #334155; display: none; }
     .review-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
     .review-buttons button { background: #1e293b; border: 1px solid #475569; padding: 10px 18px; border-radius: 28px; font-size: 14px; cursor: pointer; }
     .review-buttons button.active { background: #3b82f6; border-color: #3b82f6; color: white; }
     .preview-area { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin: 12px 0; max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; font-size: 14px; line-height: 1.5; }
     .preview-area h4 { margin-top: 0; margin-bottom: 12px; color: #94a3b8; font-size: 14px; }
-    .review-loading { text-align: center; padding: 20px; color: #94a3b8; }
     @media (max-width: 799px), (max-height: 599px) { .review-panel { display: none; } }
-    /* 悬浮窗样式（略，可自行补充） */
   </style>
 </head>
 <body>
 <div id="fullscreenContainer" class="fullscreen-mode font-default">
+  <button id="exitFocusBtn" class="exit-focus" style="display:none;">退出全屏 Exit</button>
   <div class="wrap">
     <div id="sessionInputArea" class="session-input-container" style="background:#111827; border:1px solid #334155; border-radius:18px; padding:18px; margin-bottom:20px; text-align:center;">
       <div>请输入教师提供的课程码 / Enter session code</div>
@@ -63,9 +62,9 @@
       <div class="review-panel" id="reviewPanel">
         <div class="review-header" id="reviewHeader">
           <span>📘 课堂复盘 Class Review</span>
-          <span>▼ 点击展开/折叠 Click to expand</span>
+          <span id="reviewToggleText">▼ 点击展开/折叠 Click to expand</span>
         </div>
-        <div class="review-content" id="reviewContent" style="display: none;">
+        <div class="review-content" id="reviewContent">
           <div class="review-buttons">
             <button id="modeTeacher" class="active">老师语言 Teacher</button>
             <button id="modeStudent">我的语言 My Language</button>
@@ -111,14 +110,15 @@
 </div>
 
 <script>
-  // 获取URL参数中的房间码
   const params = new URLSearchParams(location.search);
   let roomId = params.get('room');
   let isConnected = false;
   let trtc = null;
-  let currentSubtitle = { source: '', translations: {} };
-  let historyList = [];       // 存储字幕历史（用于复盘）
+  let currentSubtitle = { source_text: '', translations: {} };
+  let historyList = [];
   let targetLang = localStorage.getItem('student_lang') || 'en';
+  let reviewMode = 'teacher';
+  let reviewText = '';
 
   const sessionInputArea = document.getElementById('sessionInputArea');
   const mainContent = document.getElementById('mainContent');
@@ -129,41 +129,190 @@
   const nativeDiv = document.getElementById('native');
   const langSelect = document.getElementById('lang');
   const historyDiv = document.getElementById('history');
+  const fullscreenContainer = document.getElementById('fullscreenContainer');
+  const btnDefault = document.getElementById('btnDefault');
+  const btnMedium = document.getElementById('btnMedium');
+  const btnLarge = document.getElementById('btnLarge');
+  const btnFocus = document.getElementById('btnFocus');
+  const exitFocusBtn = document.getElementById('exitFocusBtn');
+  const reviewHeader = document.getElementById('reviewHeader');
+  const reviewContent = document.getElementById('reviewContent');
+  const reviewToggleText = document.getElementById('reviewToggleText');
+  const modeTeacher = document.getElementById('modeTeacher');
+  const modeStudent = document.getElementById('modeStudent');
+  const modeDual = document.getElementById('modeDual');
+  const generateBtn = document.getElementById('generateBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const previewContent = document.getElementById('previewContent');
+  const minimizeBtn = document.getElementById('minimizeBtn');
+  const openWindowBtn = document.getElementById('openWindowBtn');
+  const copyLinkBtn = document.getElementById('copyLinkBtn');
 
-  // 按当前线上部署拆分为 3 个云函数 URL，此页只需要 getUserSig
   const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
-  const SDKAPPID =1600133369
+  const SDKAPPID = 1600133369;
 
-
-  async function postJson(url, params) {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params)
-    });
-
-    let data = null;
-    try {
-      data = await response.json();
-    } catch (e) {
-      const text = await response.text().catch(() => '');
-      throw new Error(text || `HTTP ${response.status}`);
-    }
-
-    if (!response.ok || data.error) {
-      throw new Error(data?.error || `HTTP ${response.status}`);
-    }
-    return data;
+  function escapeHtml(str) {
+    return String(str ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
   }
 
-  // 获取 UserSig
+  async function postJson(url, params) {
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      });
+    } catch (networkErr) {
+      throw new Error(`网络请求失败：${networkErr?.message || networkErr}`);
+    }
+
+    const rawText = await response.text().catch(() => '');
+    let data = null;
+    try {
+      data = rawText ? JSON.parse(rawText) : null;
+    } catch (e) {
+      throw new Error(`接口返回非 JSON（${response.status}）：${rawText || 'empty response'}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${rawText || JSON.stringify(data)}`);
+    }
+    if (data && data.error) {
+      throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+    }
+    return data || {};
+  }
+
   async function getUserSig(userId, roomId) {
     const data = await postJson(GET_USERSIG_URL, { userId, roomId });
     if (!data.userSig) throw new Error('获取 UserSig 失败');
     return data.userSig;
   }
 
-  // 如果URL没有room参数，显示输入框
+  function getPreferredTranslation(translations) {
+    const map = translations || {};
+    return map[targetLang] || Object.values(map)[0] || '';
+  }
+
+  function renderHistory() {
+    if (historyList.length === 0) {
+      historyDiv.innerHTML = '<div class="small">暂无历史记录</div>';
+      return;
+    }
+    historyDiv.innerHTML = historyList.map(item => {
+      const translated = item.translations?.[targetLang] || Object.values(item.translations || {})[0] || item.translation || '';
+      return `
+        <div class="item">
+          <div>${escapeHtml(item.source)}</div>
+          <div class="small">${escapeHtml(translated || '（暂无翻译）')}</div>
+          <div class="small">${escapeHtml(item.timestamp)}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function startConnection(room) {
+    const userId = `student_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    try {
+      statusDiv.textContent = '正在获取用户签名...';
+      const userSig = await getUserSig(userId, room);
+      trtc = TRTC.create();
+      await trtc.enterRoom({
+        sdkAppId: SDKAPPID,
+        roomId: parseInt(room, 10),
+        scene: 'rtc',
+        userId,
+        userSig,
+      });
+      trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
+      isConnected = true;
+      statusDiv.textContent = '已连接课堂 / Connected';
+    } catch (err) {
+      console.error('student connect failed:', err);
+      statusDiv.textContent = '连接失败：' + (err?.message || String(err));
+    }
+  }
+
+  function onCustomMessage(event) {
+    const { data } = event;
+    try {
+      const msg = JSON.parse(data);
+      if (!msg.source_text) return;
+
+      currentSubtitle = {
+        source_text: msg.source_text,
+        translations: msg.translations || {}
+      };
+
+      sourceDiv.textContent = msg.source_text;
+      nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '';
+
+      historyList.unshift({
+        source: msg.source_text,
+        translation: getPreferredTranslation(currentSubtitle.translations) || '',
+        timestamp: new Date().toLocaleTimeString(),
+        translations: currentSubtitle.translations
+      });
+      if (historyList.length > 50) historyList.pop();
+      renderHistory();
+    } catch (e) {
+      console.warn('解析自定义消息失败', e, data);
+    }
+  }
+
+  function setFontClass(className) {
+    fullscreenContainer.classList.remove('font-default', 'font-medium', 'font-large');
+    fullscreenContainer.classList.add(className);
+  }
+
+  function enterFocusMode() {
+    fullscreenContainer.classList.add('focus-mode');
+    exitFocusBtn.style.display = 'block';
+  }
+
+  function exitFocusMode() {
+    fullscreenContainer.classList.remove('focus-mode');
+    exitFocusBtn.style.display = 'none';
+  }
+
+  function setReviewMode(mode) {
+    reviewMode = mode;
+    [modeTeacher, modeStudent, modeDual].forEach(btn => btn.classList.remove('active'));
+    if (mode === 'teacher') modeTeacher.classList.add('active');
+    if (mode === 'student') modeStudent.classList.add('active');
+    if (mode === 'dual') modeDual.classList.add('active');
+  }
+
+  function buildReviewText() {
+    if (!historyList.length) return '暂无课堂记录。';
+    const lines = historyList.slice().reverse().map(item => {
+      const teacher = item.source || '';
+      const student = item.translations?.[targetLang] || Object.values(item.translations || {})[0] || item.translation || '';
+      if (reviewMode === 'teacher') return teacher;
+      if (reviewMode === 'student') return student || teacher;
+      return `老师: ${teacher}\n学生: ${student || '（暂无翻译）'}`;
+    });
+    return lines.join('\n\n');
+  }
+
+  function downloadReview() {
+    if (!reviewText) return;
+    const blob = new Blob([reviewText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `class-review-${roomId || 'session'}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (!roomId) {
     sessionInputArea.style.display = 'block';
     mainContent.style.display = 'none';
@@ -184,85 +333,56 @@
     location.href = url.toString();
   });
 
-  async function startConnection(room) {
-    const userId = `student_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
-    try {
-      statusDiv.textContent = '正在获取用户签名...';
-      const userSig = await getUserSig(userId, room);
-      trtc = TRTC.create();
-      await trtc.enterRoom({
-        sdkAppId: SDKAPPID,
-        roomId: parseInt(room, 10),
-        scene: 'rtc',
-        userId,
-        userSig,
-      });
-      // 监听自定义消息
-      trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
-      isConnected = true;
-      statusDiv.textContent = '已连接课堂 / Connected';
-    } catch (err) {
-      console.error(err);
-      statusDiv.textContent = '连接失败: ' + err.message;
-    }
-  }
+  roomCodeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') confirmSessionBtn.click();
+  });
 
-  function onCustomMessage(event) {
-    const { data } = event;
-    try {
-      const msg = JSON.parse(data);
-      if (msg.source_text && msg.translations) {
-        currentSubtitle = msg;
-        // 更新显示
-        sourceDiv.textContent = msg.source_text;
-        const translation = msg.translations[targetLang] || Object.values(msg.translations)[0] || '';
-        nativeDiv.textContent = translation;
-        // 记录历史
-        historyList.unshift({
-          source: msg.source_text,
-          translation: translation,
-          timestamp: new Date().toLocaleTimeString(),
-          translations: msg.translations
-        });
-        if (historyList.length > 50) historyList.pop();
-        renderHistory();
-      }
-    } catch (e) {
-      console.warn('解析自定义消息失败', e);
-    }
-  }
-
-  function renderHistory() {
-    if (historyList.length === 0) {
-      historyDiv.innerHTML = '<div class="small">暂无历史记录</div>';
-      return;
-    }
-    historyDiv.innerHTML = historyList.map(item => `
-      <div class="item">
-        <div>${escapeHtml(item.source)}</div>
-        <div class="small">${escapeHtml(item.translation)}</div>
-      </div>
-    `).join('');
-  }
-
-  function escapeHtml(str) {
-    return String(str).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
-  }
-
-  // 语言切换
   langSelect.value = targetLang;
   langSelect.addEventListener('change', () => {
     targetLang = langSelect.value;
     localStorage.setItem('student_lang', targetLang);
-    // 刷新当前字幕
-    const translation = currentSubtitle.translations[targetLang] || Object.values(currentSubtitle.translations)[0] || '';
-    nativeDiv.textContent = translation;
-    // 刷新历史列表中的翻译（可选）
+    nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '';
     renderHistory();
   });
 
-  // 字体档位、全屏模式、悬浮窗等可复用原有逻辑，此处略，实际可从原 index.html 复制
-  // 为保持简洁，只展示核心功能，完整版请参考原文件并替换轮询部分为上述监听
+  btnDefault.addEventListener('click', () => setFontClass('font-default'));
+  btnMedium.addEventListener('click', () => setFontClass('font-medium'));
+  btnLarge.addEventListener('click', () => setFontClass('font-large'));
+  btnFocus.addEventListener('click', enterFocusMode);
+  exitFocusBtn.addEventListener('click', exitFocusMode);
+
+  reviewHeader.addEventListener('click', () => {
+    const willShow = reviewContent.style.display === 'none';
+    reviewContent.style.display = willShow ? 'block' : 'none';
+    reviewToggleText.textContent = willShow ? '▲ 点击展开/折叠 Click to expand' : '▼ 点击展开/折叠 Click to expand';
+  });
+
+  modeTeacher.addEventListener('click', () => setReviewMode('teacher'));
+  modeStudent.addEventListener('click', () => setReviewMode('student'));
+  modeDual.addEventListener('click', () => setReviewMode('dual'));
+  generateBtn.addEventListener('click', () => {
+    reviewText = buildReviewText();
+    previewContent.textContent = reviewText;
+    downloadBtn.disabled = !reviewText;
+  });
+  downloadBtn.addEventListener('click', downloadReview);
+
+  minimizeBtn.addEventListener('click', () => {
+    alert('当前版本保留了按钮入口；如需我再补完整悬浮窗逻辑，我可以继续给你。');
+  });
+  openWindowBtn.addEventListener('click', () => {
+    window.open(location.href, '_blank', 'width=1100,height=800');
+  });
+  copyLinkBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      alert('链接已复制');
+    } catch {
+      alert('复制失败，请手动复制');
+    }
+  });
+
+  renderHistory();
 </script>
 </body>
 </html>
