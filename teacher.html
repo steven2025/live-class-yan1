@@ -205,6 +205,7 @@ function normalizeSubtitleMessage(msg) {
   const payload = (msg && typeof msg === 'object' && msg.payload && typeof msg.payload === 'object') ? msg.payload : {};
   const typeValue = (msg && msg.type != null) ? Number(msg.type) : NaN;
   const type = Number.isFinite(typeValue) ? typeValue : 0;
+
   const sourceText = pickFirstNonEmptyString([
     payload.text,
     payload.source_text,
@@ -214,6 +215,7 @@ function normalizeSubtitleMessage(msg) {
     msg && msg.source_text,
     msg && msg.text
   ]);
+
   const translationText = pickFirstNonEmptyString([
     payload.translation_text,
     payload.translationText,
@@ -224,6 +226,7 @@ function normalizeSubtitleMessage(msg) {
     msg && msg.translation_text,
     msg && msg.translationText
   ]);
+
   const translationLanguage = pickFirstNonEmptyString([
     payload.translation_language,
     payload.translationLanguage,
@@ -231,10 +234,12 @@ function normalizeSubtitleMessage(msg) {
     payload.targetLanguage,
     msg && msg.translation_language
   ]);
+
   const translations = mergeTranslationMap({}, payload.translations || (msg && msg.translations) || null);
   if (translationLanguage && translationText) {
     translations[translationLanguage] = translationText;
   }
+
   const roundId = pickFirstNonEmptyString([
     payload.roundId,
     payload.round_id,
@@ -242,12 +247,15 @@ function normalizeSubtitleMessage(msg) {
     payload.messageId,
     msg && msg.roundId
   ]) || ('type_' + type + '_' + Date.now());
+
   const sender = pickFirstNonEmptyString([
     msg && msg.userId,
     payload.userId,
     payload.sender
   ]);
+
   const end = Boolean(payload.end || payload.isFinal || payload.final || payload.finished);
+
   const statusMessage = pickFirstNonEmptyString([
     payload.message,
     payload.reason,
@@ -441,19 +449,20 @@ async function broadcastTranslatedSubtitle(data) {
   if (!trtc || !data) return;
 
   const message = {
-    type: 10000,
-    payload: {
-      roundId: String(data.seq || Date.now()),
-      source_text: data.sourceText || '',
-      translations: data.translations || {},
-      end: !!data.isFinal
-    }
+    roundId: String(data.seq || Date.now()),
+    source_text: data.sourceText || '',
+    translations: data.translations || {},
+    end: !!data.isFinal
   };
 
-  console.log('sendCustomMessage JSON:', safeStringify(message));
+  console.log('sendCustomMessage payload JSON:', safeStringify(message));
 
-  // 关键修复：这里必须传对象，不能传 JSON.stringify(message)
-  await trtc.sendCustomMessage(message);
+  await trtc.sendCustomMessage({
+    cmdId: 1,
+    data: JSON.stringify(message),
+    reliable: true,
+    ordered: true
+  });
 }
 
 async function handleFinalSubtitleTranslation(sourceText) {
@@ -601,11 +610,19 @@ async function sendManualSubtitle() {
 }
 
 function onCustomMessage(event) {
-  const msg = decodeCustomMessageData(event.data);
-  if (!msg) return;
+  const incoming = event && event.data;
+  let parsedMsg = null;
 
-  console.log('CUSTOM_MESSAGE decoded JSON:', safeStringify(msg));
-  const normalized = normalizeSubtitleMessage(msg);
+  if (incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
+    parsedMsg = incoming;
+  } else {
+    parsedMsg = decodeCustomMessageData(incoming);
+  }
+
+  if (!parsedMsg) return;
+
+  console.log('CUSTOM_MESSAGE decoded JSON:', safeStringify(parsedMsg));
+  const normalized = normalizeSubtitleMessage(parsedMsg);
   console.log('CUSTOM_MESSAGE normalized JSON:', safeStringify({
     type: normalized.type,
     roundId: normalized.roundId,
