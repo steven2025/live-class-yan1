@@ -182,19 +182,43 @@ function pickFirstNonEmptyString(values) {
 
 function decodeCustomMessageData(data) {
   if (!data) return null;
+
   try {
     if (data instanceof ArrayBuffer) {
       const decoded = new TextDecoder().decode(data);
       return decoded ? JSON.parse(decoded) : null;
     }
+
     if (ArrayBuffer.isView(data)) {
       const decoded = new TextDecoder().decode(data);
       return decoded ? JSON.parse(decoded) : null;
     }
+
     if (typeof data === 'string') {
       return JSON.parse(data);
     }
-    return data;
+
+    if (typeof data === 'object' && data !== null) {
+      if (typeof data.data === 'string' && data.data.trim()) {
+        try {
+          return JSON.parse(data.data);
+        } catch (e) {
+          console.warn('CUSTOM_MESSAGE inner data parse failed', e, data.data);
+        }
+      }
+
+      if (typeof data.data === 'object' && data.data !== null) {
+        return data.data;
+      }
+
+      if (typeof data.payload === 'object' && data.payload !== null) {
+        return data;
+      }
+
+      return data;
+    }
+
+    return null;
   } catch (e) {
     console.warn('CUSTOM_MESSAGE decode failed', e, data);
     return null;
@@ -610,19 +634,17 @@ async function sendManualSubtitle() {
 }
 
 function onCustomMessage(event) {
-  const incoming = event && event.data;
-  let parsedMsg = null;
+  console.log('CUSTOM_MESSAGE raw event:', event);
 
-  if (incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
-    parsedMsg = incoming;
-  } else {
-    parsedMsg = decodeCustomMessageData(incoming);
-  }
+  const rawData = event && event.data;
+  const msg = decodeCustomMessageData(rawData);
 
-  if (!parsedMsg) return;
+  console.log('CUSTOM_MESSAGE decoded JSON:', safeStringify(msg));
 
-  console.log('CUSTOM_MESSAGE decoded JSON:', safeStringify(parsedMsg));
-  const normalized = normalizeSubtitleMessage(parsedMsg);
+  if (!msg) return;
+
+  const normalized = normalizeSubtitleMessage(msg);
+
   console.log('CUSTOM_MESSAGE normalized JSON:', safeStringify({
     type: normalized.type,
     roundId: normalized.roundId,
@@ -631,7 +653,8 @@ function onCustomMessage(event) {
     translationText: normalized.translationText,
     translationLanguage: normalized.translationLanguage,
     end: normalized.end,
-    statusMessage: normalized.statusMessage
+    statusMessage: normalized.statusMessage,
+    translations: normalized.translations
   }));
 
   if (!normalized.isSubtitleLike) {
@@ -649,10 +672,10 @@ function onCustomMessage(event) {
   sourceTextDiv.textContent = currentSubtitleState.sourceText || '等待语音输入...';
   statusDiv.textContent = '🎙️ 上课中... 正在接收字幕';
 
-  if (merged.ended) {
+  renderCurrentTeacherSubtitle();
+
+  if (merged.ended && merged.sourceText) {
     handleFinalSubtitleTranslation(merged.sourceText);
-  } else {
-    renderCurrentTeacherSubtitle();
   }
 }
 
