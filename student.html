@@ -12,10 +12,23 @@
     .wrap { max-width: 940px; margin: 0 auto; }
     .status { font-size: 13px; color: #94a3b8; margin-bottom: 10px; white-space: pre-wrap; }
     .card { background: #111827; border: 1px solid #334155; border-radius: 20px; padding: 20px; }
-    .source { font-weight: 700; word-break: break-word; min-height: 54px; color: #dbe4f0; }
-    .native { word-break: break-word; min-height: 48px; color: #f4e7a1; text-shadow: 0 0 0 transparent; }
+    .source { font-weight: 700; word-break: break-word; min-height: 54px; color: #dbe4f0; transition: opacity .18s ease; }
+    .native { word-break: break-word; min-height: 48px; color: #f4e7a1; text-shadow: 0 0 0 transparent; transition: opacity .18s ease; }
+    .native.pending { color: #dccf8d; opacity: .82; }
+    .translate-tip { margin-top: 6px; min-height: 18px; font-size: 12px; color: #8f9db0; }
     .history { margin-top: 16px; }
-    .item { border-top: 1px solid #1f2937; padding: 12px 0; }
+    .history-note { margin-bottom: 10px; font-size: 12px; color: #8fa0b5; }
+    .item { border-top: 1px solid #1f2937; padding: 12px 0; transition: all .18s ease; }
+    .history .item:first-child { border-top: none; padding-top: 0; }
+    .history-item-primary .history-source { font-size: 26px; font-weight: 700; line-height: 1.45; color: #ecf3fb; }
+    .history-item-primary .history-translation { font-size: 28px; line-height: 1.45; color: #f4e7a1; }
+    .history-item-primary .history-time { color: #b6c3d4; }
+    .history-item-secondary .history-source { font-size: 22px; font-weight: 600; line-height: 1.45; color: #dde7f2; }
+    .history-item-secondary .history-translation { font-size: 24px; line-height: 1.45; color: #eedf98; }
+    .history-item-secondary .history-time { color: #9fb0c4; }
+    .history-item-normal .history-source { font-size: 18px; line-height: 1.5; color: #cfd9e5; }
+    .history-item-normal .history-translation { font-size: 19px; line-height: 1.5; color: #e5d78f; }
+    .history-item-normal .history-time { color: #8fa0b5; }
     .small { font-size: 13px; color: #94a3b8; }
     .font-default .source { font-size: 28px; }
     .font-default .native { font-size: 31px; }
@@ -83,6 +96,7 @@
         <div id="source" class="source">等待字幕...</div>
         <div class="small" style="margin-top:12px;">目标翻译</div>
         <div id="native" class="native"></div>
+        <div id="translateTip" class="translate-tip"></div>
       </div>
 
       <div class="review-panel" id="reviewPanel">
@@ -140,6 +154,8 @@ let subtitleRoundStore = new Map();
 let historyList = [];
 let reviewMode = 'teacher';
 let reviewText = '';
+const HISTORY_RENDER_LIMIT = 12;
+const HISTORY_RENDER_LIMIT = 12;
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
   { value: 'th', label: 'ไทย' },
@@ -172,6 +188,7 @@ const confirmSessionBtn = document.getElementById('confirmSessionBtn');
 const statusDiv = document.getElementById('status');
 const sourceDiv = document.getElementById('source');
 const nativeDiv = document.getElementById('native');
+const translateTipDiv = document.getElementById('translateTip');
 const historyDiv = document.getElementById('history');
 const reviewHeader = document.getElementById('reviewHeader');
 const reviewContent = document.getElementById('reviewContent');
@@ -282,8 +299,34 @@ function getPreferredTranslation(translations) {
 }
 
 function renderCurrentSubtitle() {
-  sourceDiv.textContent = currentSubtitle.source_text || '等待字幕...';
-  nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '（暂无翻译）';
+  const sourceText = currentSubtitle.source_text || '';
+  const preferredTranslation = getPreferredTranslation(currentSubtitle.translations) || '';
+  const hasSource = !!sourceText.trim();
+  const hasTranslation = !!preferredTranslation.trim();
+
+  sourceDiv.textContent = sourceText || '等待字幕...';
+
+  if (hasTranslation) {
+    nativeDiv.textContent = preferredTranslation;
+    nativeDiv.classList.remove('pending');
+    translateTipDiv.textContent = '翻译已更新';
+    return;
+  }
+
+  nativeDiv.classList.add('pending');
+  if (!hasSource) {
+    nativeDiv.textContent = '（暂无翻译）';
+    translateTipDiv.textContent = '';
+    return;
+  }
+
+  if (currentSubtitle.ended) {
+    nativeDiv.textContent = '正在翻译...';
+    translateTipDiv.textContent = '本句原文已到达，翻译通常会慢约 1-3 秒';
+  } else {
+    nativeDiv.textContent = '等待本句结束后翻译...';
+    translateTipDiv.textContent = '原文优先显示，翻译会在句子更完整后更新';
+  }
 }
 
 function escapeHtml(str) {
@@ -312,9 +355,14 @@ function renderHistory() {
     historyDiv.innerHTML = '<div class="small">暂无历史记录</div>';
     return;
   }
-  historyDiv.innerHTML = historyList.map(item => {
+
+  const visibleItems = historyList.slice(0, HISTORY_RENDER_LIMIT);
+  const note = '<div class="history-note">最新内容在最上方，最近 1 条最大，接下来的 3 条次之，其余恢复为标准字号。</div>';
+
+  historyDiv.innerHTML = note + visibleItems.map((item, index) => {
     const translated = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
-    return `<div class="item"><div>${escapeHtml(item.source)}</div><div class="small" style="color:#e9d98e; margin-top:4px;">${escapeHtml(translated || '（暂无翻译）')}</div><div class="small">${escapeHtml(item.timestamp)}</div></div>`;
+    const levelClass = index === 0 ? 'history-item-primary' : (index < 4 ? 'history-item-secondary' : 'history-item-normal');
+    return `<div class="item ${levelClass}"><div class="history-source">${escapeHtml(item.source)}</div><div class="history-translation" style="margin-top:4px;">${escapeHtml(translated || '（暂无翻译）')}</div><div class="small history-time">${escapeHtml(item.timestamp)}</div></div>`;
   }).join('');
 }
 
