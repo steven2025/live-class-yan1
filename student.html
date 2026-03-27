@@ -356,13 +356,14 @@ function renderHistory() {
     return;
   }
 
-  const visibleItems = historyList.slice(0, HISTORY_RENDER_LIMIT);
-  const note = '<div class="history-note">最新内容在最上方，最近 1 条最大，接下来的 3 条次之，其余恢复为标准字号。</div>';
+  const visibleItems = historyList.slice(0, 12);
+  const note = '<div class="history-note">最新内容在最上方：第 1 条最大，第 2 至 4 条次之，其余恢复标准字号。</div>';
 
   historyDiv.innerHTML = note + visibleItems.map((item, index) => {
     const translated = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
-    const levelClass = index === 0 ? 'history-item-primary' : (index < 4 ? 'history-item-secondary' : 'history-item-normal');
-    return `<div class="item ${levelClass}"><div class="history-source">${escapeHtml(item.source)}</div><div class="history-translation" style="margin-top:4px;">${escapeHtml(translated || '（暂无翻译）')}</div><div class="small history-time">${escapeHtml(item.timestamp)}</div></div>`;
+    const levelClass = index === 0 ? 'history-card-primary' : (index < 4 ? 'history-card-secondary' : 'history-card-normal');
+    const levelLabel = index === 0 ? '最新内容' : (index < 4 ? '最近内容' : '更早内容');
+    return `<div class="history-card ${levelClass}"><div class="history-label">${levelLabel}</div><div class="history-source">${escapeHtml(item.source)}</div><div class="history-translation">${escapeHtml(translated || '（暂无翻译）')}</div><div class="history-time">${escapeHtml(item.timestamp)}</div></div>`;
   }).join('');
 }
 
