@@ -13,18 +13,31 @@
     .status { font-size: 13px; color: #94a3b8; margin-bottom: 10px; white-space: pre-wrap; }
     .card { background: #111827; border: 1px solid #334155; border-radius: 20px; padding: 20px; }
     .source { font-weight: 700; word-break: break-word; min-height: 54px; color: #dbe4f0; transition: opacity .18s ease; }
-    .native { word-break: break-word; min-height: 48px; color: #f4e7a1; text-shadow: 0 0 0 transparent; transition: opacity .18s ease; }
-    .native.pending { color: #dccf8d; opacity: .82; }
+    .native { word-break: break-word; min-height: 48px; color: #e9d98e; text-shadow: 0 0 0 transparent; transition: opacity .18s ease; }
+    .native.pending { color: #cdbf7e; opacity: .84; }
     .translate-tip { margin-top: 6px; min-height: 18px; font-size: 12px; color: #8f9db0; }
     .history { margin-top: 16px; }
     .item { border-top: 1px solid #1f2937; padding: 12px 0; }
+    .history-item { border-top: 1px solid #1f2937; padding: 14px 0 12px; }
+    .history-source, .history-translation { word-break: break-word; line-height: 1.45; transition: all .18s ease; }
+    .history-source { color: #dbe4f0; margin-bottom: 4px; }
+    .history-translation { color: #e9d98e; }
+    .history-time { font-size: 13px; color: #94a3b8; margin-top: 6px; }
+    .history-item.tier-1 .history-source { font-size: 26px; font-weight: 700; }
+    .history-item.tier-1 .history-translation { font-size: 29px; font-weight: 600; }
+    .history-item.tier-2 .history-source { font-size: 22px; font-weight: 650; }
+    .history-item.tier-2 .history-translation { font-size: 25px; font-weight: 560; }
+    .history-item.tier-3 .history-source { font-size: 19px; }
+    .history-item.tier-3 .history-translation { font-size: 21px; }
+    .history-item.tier-4 .history-source { font-size: 17px; }
+    .history-item.tier-4 .history-translation { font-size: 18px; }
     .small { font-size: 13px; color: #94a3b8; }
     .font-default .source { font-size: 28px; }
-    .font-default .native { font-size: 31px; }
+    .font-default .native { font-size: 33px; }
     .font-medium .source { font-size: 36px; }
-    .font-medium .native { font-size: 40px; }
+    .font-medium .native { font-size: 42px; }
     .font-large .source { font-size: 46px; }
-    .font-large .native { font-size: 50px; }
+    .font-large .native { font-size: 52px; }
 
     .focus-mode { padding: 0 !important; background: #0f172a; }
     .focus-mode .wrap { max-width: 100% !important; margin: 0 !important; height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
@@ -342,23 +355,10 @@ function renderHistory() {
     historyDiv.innerHTML = '<div class="small">暂无历史记录</div>';
     return;
   }
-
-  const visibleItems = historyList.slice(0, 12);
-  historyDiv.innerHTML = visibleItems.map((item, index) => {
+  historyDiv.innerHTML = historyList.slice(0, 12).map((item, index) => {
     const translated = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
-    const tierClass = index === 0
-      ? 'history-item-primary'
-      : index <= 3
-        ? 'history-item-secondary'
-        : 'history-item-normal';
-
-    return `
-      <div class="item ${tierClass}">
-        <div class="history-source">${escapeHtml(item.source)}</div>
-        <div class="history-translation" style="margin-top:6px;">${escapeHtml(translated || '（暂无翻译）')}</div>
-        <div class="history-time small" style="margin-top:8px;">${escapeHtml(item.timestamp)}</div>
-      </div>
-    `;
+    const tierClass = index === 0 ? 'tier-1' : index === 1 ? 'tier-2' : index === 2 ? 'tier-3' : 'tier-4';
+    return `<div class="history-item ${tierClass}"><div class="history-source">${escapeHtml(item.source)}</div><div class="history-translation">${escapeHtml(translated || '（暂无翻译）')}</div><div class="history-time">${escapeHtml(item.timestamp)}</div></div>`;
   }).join('');
 }
 

@@ -394,21 +394,14 @@
       historyDiv.innerHTML = '<div class="small">暂无历史记录</div>';
       return;
     }
-
-    const visibleItems = historyList.slice(0, 12);
-    historyDiv.innerHTML = visibleItems.map((item, index) => {
+    historyDiv.innerHTML = historyList.slice(0, 12).map((item, index) => {
       const translated = item.translations?.[targetLang] || Object.values(item.translations || {})[0] || item.translation || '';
-      const tierClass = index === 0
-        ? 'history-item-primary'
-        : index <= 3
-          ? 'history-item-secondary'
-          : 'history-item-normal';
-
+      const tierClass = index === 0 ? 'tier-1' : index === 1 ? 'tier-2' : index === 2 ? 'tier-3' : 'tier-4';
       return `
-        <div class="item ${tierClass}">
+        <div class="history-item ${tierClass}">
           <div class="history-source">${escapeHtml(item.source)}</div>
-          <div class="history-translation" style="margin-top:6px;">${escapeHtml(translated || '（暂无翻译）')}</div>
-          <div class="history-time small" style="margin-top:8px;">${escapeHtml(item.timestamp)}</div>
+          <div class="history-translation">${escapeHtml(translated || '（暂无翻译）')}</div>
+          <div class="history-time">${escapeHtml(item.timestamp)}</div>
         </div>
       `;
     }).join('');
