@@ -231,7 +231,7 @@ function normalizeSubtitleMessage(msg) {
     payload.targetLanguage,
     msg && msg.translation_language
   ]);
-  const translations = mergeTranslationMap({}, payload.translations || msg && msg.translations || null);
+  const translations = mergeTranslationMap({}, payload.translations || (msg && msg.translations) || null);
   if (translationLanguage && translationText) {
     translations[translationLanguage] = translationText;
   }
@@ -369,15 +369,25 @@ async function getUserSig(userId, roomId) {
 }
 
 async function startAITranscription(roomId, userId, userSig, targetLanguages) {
-  const filteredTargetLanguages = (targetLanguages || []).filter(function(lang) { return SUPPORTED_TRANSLATION_LANGS.includes(lang); });
-  console.log('START_AI request JSON:', safeStringify({ roomId: roomId, userId: userId, targetLanguages: filteredTargetLanguages }));
+  const filteredTargetLanguages = (targetLanguages || []).filter(function(lang) {
+    return SUPPORTED_TRANSLATION_LANGS.includes(lang);
+  });
+
+  console.log('START_AI request JSON:', safeStringify({
+    roomId: roomId,
+    userId: userId,
+    targetLanguages: filteredTargetLanguages
+  }));
+
   const data = await postJson(START_AI_URL, {
     roomId: roomId,
     userId: userId,
     userSig: userSig,
     targetLanguages: filteredTargetLanguages
   });
+
   console.log('START_AI raw response JSON:', safeStringify(data));
+
   if (!data || !data.taskId) {
     throw new Error('启动转录失败: ' + JSON.stringify(data));
   }
@@ -441,7 +451,9 @@ async function broadcastTranslatedSubtitle(data) {
   };
 
   console.log('sendCustomMessage JSON:', safeStringify(message));
-  await trtc.sendCustomMessage(JSON.stringify(message));
+
+  // 关键修复：这里必须传对象，不能传 JSON.stringify(message)
+  await trtc.sendCustomMessage(message);
 }
 
 async function handleFinalSubtitleTranslation(sourceText) {
@@ -463,7 +475,6 @@ async function handleFinalSubtitleTranslation(sourceText) {
 
     renderCurrentTeacherSubtitle();
     pushTeacherHistorySnapshot(currentSubtitleState);
-
     await broadcastTranslatedSubtitle(translated);
   } catch (err) {
     console.error('translate function failed:', err);
@@ -503,11 +514,9 @@ async function startClass() {
     stopBtn.disabled = false;
     statusDiv.textContent = '已进入房间，正在启动AI转录...';
 
-    const selectedLangs = Array.from(targetLanguagesSelect.selectedOptions).map(function(opt) {
-      return opt.value;
-    }).filter(function(lang) {
-      return SUPPORTED_TRANSLATION_LANGS.includes(lang);
-    });
+    const selectedLangs = Array.from(targetLanguagesSelect.selectedOptions)
+      .map(function(opt) { return opt.value; })
+      .filter(function(lang) { return SUPPORTED_TRANSLATION_LANGS.includes(lang); });
 
     if (selectedLangs.length === 0) {
       translatedTextDiv.textContent = '请选择至少一种翻译语言';
@@ -520,11 +529,11 @@ async function startClass() {
     } catch (aiErr) {
       console.error('AI转录启动失败:', aiErr, JSON.stringify(aiErr, Object.getOwnPropertyNames(aiErr)));
       currentTaskId = null;
-      statusDiv.textContent = '已进房间，但AI转录启动失败: ' + (((aiErr && aiErr.message) || JSON.stringify(aiErr)));
+      statusDiv.textContent = '已进房间，但AI转录启动失败: ' + ((aiErr && aiErr.message) || JSON.stringify(aiErr));
     }
   } catch (err) {
     console.error('startClass failed:', err, JSON.stringify(err, Object.getOwnPropertyNames(err)));
-    statusDiv.textContent = '启动失败: ' + (((err && err.message) || JSON.stringify(err)));
+    statusDiv.textContent = '启动失败: ' + ((err && err.message) || JSON.stringify(err));
 
     if (trtc) {
       await trtc.exitRoom().catch(function(e) { console.warn(e); });
@@ -587,7 +596,7 @@ async function sendManualSubtitle() {
     manualText.value = '';
   } catch (err) {
     console.error('manual translate failed:', err);
-    alert('手动发送失败: ' + (((err && err.message) || String(err))));
+    alert('手动发送失败: ' + ((err && err.message) || String(err)));
   }
 }
 
