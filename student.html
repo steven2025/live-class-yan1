@@ -8,580 +8,502 @@
   <style>
     * { box-sizing: border-box; user-select: none; }
     body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
-    .fullscreen-mode { padding: 20px 16px 88px; transition: all 0.2s; }
-    .fullscreen-mode .wrap { max-width: 900px; margin: 0 auto; }
-    .fullscreen-mode .status { font-size: 13px; color: #94a3b8; margin-bottom: 10px; white-space: pre-wrap; }
-    .fullscreen-mode .card { background: #111827; border: 1px solid #334155; border-radius: 18px; padding: 18px; }
-    .fullscreen-mode .source { font-weight: 700; margin-bottom: 14px; word-break: break-word; min-height: 56px; }
-    .fullscreen-mode .native { color: #cbd5e1; word-break: break-word; min-height: 44px; }
-    .fullscreen-mode .toolbar { position: fixed; left: 0; right: 0; bottom: 0; background: #0b1220; border-top: 1px solid #334155; padding: 12px 14px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; z-index: 100; }
-    .fullscreen-mode select, .fullscreen-mode button { border-radius: 40px; border: 1px solid #334155; background: #111827; color: #fff; padding: 12px 20px; font-size: 16px; cursor: pointer; }
-    .fullscreen-mode .history { margin-top: 16px; }
-    .fullscreen-mode .item { border-top: 1px solid #1f2937; padding: 12px 0; }
-    .fullscreen-mode .small { font-size: 13px; color: #94a3b8; }
-    .font-default .source { font-size: 30px; }
-    .font-default .native { font-size: 24px; }
-    .font-medium .source { font-size: 40px; }
-    .font-medium .native { font-size: 32px; }
-    .font-large .source { font-size: 50px; }
-    .font-large .native { font-size: 40px; }
+    .page { padding: 20px 16px 92px; transition: all .2s; }
+    .wrap { max-width: 940px; margin: 0 auto; }
+    .status { font-size: 13px; color: #94a3b8; margin-bottom: 10px; white-space: pre-wrap; }
+    .card { background: #111827; border: 1px solid #334155; border-radius: 20px; padding: 20px; }
+    .source { font-weight: 700; word-break: break-word; min-height: 54px; color: #dbe4f0; }
+    .native { word-break: break-word; min-height: 48px; color: #f4e7a1; text-shadow: 0 0 0 transparent; }
+    .history { margin-top: 16px; }
+    .item { border-top: 1px solid #1f2937; padding: 12px 0; }
+    .small { font-size: 13px; color: #94a3b8; }
+    .font-default .source { font-size: 28px; }
+    .font-default .native { font-size: 31px; }
+    .font-medium .source { font-size: 36px; }
+    .font-medium .native { font-size: 40px; }
+    .font-large .source { font-size: 46px; }
+    .font-large .native { font-size: 50px; }
+
     .focus-mode { padding: 0 !important; background: #0f172a; }
     .focus-mode .wrap { max-width: 100% !important; margin: 0 !important; height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
     .focus-mode .card { width: 100%; background: transparent; border: none; padding: 20px; text-align: center; }
-    .focus-mode .source { font-size: 80px !important; margin-bottom: 30px; }
-    .focus-mode .native { font-size: 64px !important; }
-    .focus-mode .status, .focus-mode .history, .focus-mode .toolbar, .focus-mode .review-panel { display: none !important; }
-    .focus-mode .exit-focus { position: fixed; top: 20px; right: 20px; background: #334155; border: none; color: white; padding: 10px 20px; border-radius: 30px; cursor: pointer; z-index: 1000; }
+    .focus-mode .source { font-size: 70px !important; margin-bottom: 20px; }
+    .focus-mode .native { font-size: 76px !important; }
+    .focus-mode .status, .focus-mode .history, .focus-mode .review-panel { display: none !important; }
+    .exit-focus { position: fixed; top: 20px; right: 20px; background: #334155; border: none; color: white; padding: 10px 20px; border-radius: 30px; cursor: pointer; z-index: 1000; display: none; }
+
+    .toolbar-toggle {
+      position: fixed; right: 14px; bottom: 14px; z-index: 210; border: none; border-radius: 999px; background: #1e293b; color: #fff; width: 56px; height: 56px; font-size: 22px; cursor: pointer; box-shadow: 0 10px 28px rgba(0,0,0,.24);
+    }
+    .toolbar-panel {
+      position: fixed; right: 14px; bottom: 80px; z-index: 220; width: min(320px, calc(100vw - 28px));
+      background: rgba(11,18,32,.98); border: 1px solid #334155; border-radius: 18px; padding: 12px; display: none;
+    }
+    .toolbar-panel.open { display: block; }
+    .toolbar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .toolbar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .toolbar-panel select, .toolbar-panel button {
+      border-radius: 14px; border: 1px solid #334155; background: #111827; color: #fff; padding: 10px 12px; font-size: 14px; cursor: pointer;
+    }
+    .toolbar-hide-btn { background: #334155 !important; }
+
+    .lang-chooser { margin: 10px 0 12px; }
+    .lang-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .lang-option {
+      display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px; background: #111827; border: 1px solid #334155; font-size: 13px;
+    }
+    .lang-option input { width: 16px; height: 16px; accent-color: #eab308; }
+    .lang-confirm-btn { margin-top: 8px; width: 100%; background: #b45309 !important; }
+
     .review-panel { margin-top: 24px; border: 1px solid #334155; border-radius: 18px; background: #111827; overflow: hidden; }
     .review-header { background: #1e293b; padding: 12px 18px; font-weight: bold; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-    .review-header:hover { background: #334155; }
     .review-content { padding: 18px; border-top: 1px solid #334155; display: none; }
     .review-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-    .review-buttons button { background: #1e293b; border: 1px solid #475569; padding: 10px 18px; border-radius: 28px; font-size: 14px; cursor: pointer; }
-    .review-buttons button.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+    .review-buttons button { background: #1e293b; border: 1px solid #475569; padding: 10px 18px; border-radius: 28px; font-size: 14px; cursor: pointer; color: white; }
+    .review-buttons button.active { background: #3b82f6; border-color: #3b82f6; }
     .preview-area { background: #0f172a; border: 1px solid #334155; border-radius: 12px; padding: 16px; margin: 12px 0; max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: monospace; font-size: 14px; line-height: 1.5; }
     .preview-area h4 { margin-top: 0; margin-bottom: 12px; color: #94a3b8; font-size: 14px; }
     @media (max-width: 799px), (max-height: 599px) { .review-panel { display: none; } }
   </style>
 </head>
 <body>
-<div id="fullscreenContainer" class="fullscreen-mode font-default">
-  <button id="exitFocusBtn" class="exit-focus" style="display:none;">退出全屏 Exit</button>
+<div id="page" class="page font-default">
+  <button id="exitFocusBtn" class="exit-focus">退出全屏</button>
   <div class="wrap">
-    <div id="sessionInputArea" class="session-input-container" style="background:#111827; border:1px solid #334155; border-radius:18px; padding:18px; margin-bottom:20px; text-align:center;">
-      <div>请输入教师提供的课程码 / Enter session code</div>
+    <div id="sessionInputArea" style="background:#111827; border:1px solid #334155; border-radius:18px; padding:18px; margin-bottom:20px; text-align:center;">
+      <div>请输入教师提供的课程码（无需密码）</div>
       <input type="text" id="roomCodeInput" placeholder="例如: 12345" maxlength="5" style="background:#0f172a; border:1px solid #475569; color:white; padding:10px 15px; border-radius:40px; font-size:16px; width:200px; margin:10px;">
-      <button id="confirmSessionBtn" style="background:#3b82f6; border:none; color:white; padding:12px 20px; border-radius:40px; cursor:pointer; font-size:16px;">连接课程 Connect</button>
+      <button id="confirmSessionBtn" style="background:#3b82f6; border:none; color:white; padding:12px 20px; border-radius:40px; cursor:pointer; font-size:16px;">进入课堂</button>
     </div>
-    <div id="mainContent" style="display: none;">
-      <div id="status" class="status">正在连接教师端… / Connecting...</div>
+
+    <div id="mainContent" style="display:none;">
+      <div id="status" class="status">正在连接教师端...</div>
       <div class="card">
-        <div id="source" class="source">等待字幕… / Waiting for subtitles...</div>
+        <div class="small">教师原语言</div>
+        <div id="source" class="source">等待字幕...</div>
+        <div class="small" style="margin-top:12px;">目标翻译</div>
         <div id="native" class="native"></div>
       </div>
+
       <div class="review-panel" id="reviewPanel">
         <div class="review-header" id="reviewHeader">
-          <span>📘 课堂复盘 Class Review</span>
-          <span id="reviewToggleText">▼ 点击展开/折叠 Click to expand</span>
+          <span>📘 课堂复盘</span>
+          <span id="reviewToggleText">▼ 点击展开/折叠</span>
         </div>
         <div class="review-content" id="reviewContent">
           <div class="review-buttons">
-            <button id="modeTeacher" class="active">老师语言 Teacher</button>
-            <button id="modeStudent">我的语言 My Language</button>
-            <button id="modeDual">双语 Bilingual</button>
-            <button id="generateBtn">✨ 一键生成 Generate</button>
-            <button id="downloadBtn" disabled>📥 下载 Download</button>
+            <button id="modeTeacher" class="active">老师语言</button>
+            <button id="modeStudent">我的语言</button>
+            <button id="modeDual">双语</button>
+            <button id="generateBtn">一键生成</button>
+            <button id="downloadBtn" disabled>下载</button>
           </div>
           <div id="previewArea" class="preview-area">
-            <h4>复盘预览 Preview</h4>
-            <div id="previewContent">暂无内容，点击“一键生成”获取复盘。 / Click Generate</div>
+            <h4>复盘预览</h4>
+            <div id="previewContent">暂无内容，点击“一键生成”获取复盘。</div>
           </div>
         </div>
       </div>
+
       <div class="history" id="history"></div>
     </div>
   </div>
-  <div class="toolbar" id="toolbar">
-    <select id="lang">
-      <option value="en">English</option>
-      <option value="th">ไทย</option>
-      <option value="vi">Tiếng Việt</option>
-      <option value="id">Bahasa Indonesia</option>
-      <option value="ms">Bahasa Melayu</option>
-      <option value="fr">Français</option>
-      <option value="ja">日本語</option>
-      <option value="ru">Русский</option>
-      <option value="ko">한국어</option>
-      <option value="de">Deutsch</option>
-      <option value="es">Español</option>
-      <option value="pt">Português</option>
-      <option value="zh">中文 (简体)</option>
-      <option value="it">Italiano</option>
-      <option value="ar">العربية</option>
-    </select>
-    <button id="btnDefault">默认 Default</button>
-    <button id="btnMedium">中等 Medium</button>
-    <button id="btnLarge">大字体 Large</button>
-    <button id="btnFocus">全屏 Fullscreen</button>
-    <button id="minimizeBtn">🔽 缩小为悬浮窗 Minimize</button>
-    <button id="openWindowBtn">🪟 新窗口悬浮窗 New Window</button>
-    <button id="copyLinkBtn">复制当前链接 Copy Link</button>
+
+  <button id="toolbarToggle" class="toolbar-toggle">☰</button>
+  <div id="toolbarPanel" class="toolbar-panel">
+    <div class="toolbar-header">
+      <strong style="font-size:14px;">学生端设置</strong>
+      <button id="toolbarHideBtn" class="toolbar-hide-btn">隐藏</button>
+    </div>
+    <div class="lang-chooser">
+      <div class="small" style="margin-bottom:8px;">勾选你要看的语种后确认</div>
+      <div id="langGrid" class="lang-grid"></div>
+      <button id="langConfirmBtn" class="lang-confirm-btn">确认语种</button>
+    </div>
+    <div class="toolbar-actions">
+      <button id="btnDefault">默认</button>
+      <button id="btnMedium">中等</button>
+      <button id="btnLarge">大字体</button>
+      <button id="btnFocus">全屏</button>
+      <button id="openWindowBtn">新窗口</button>
+      <button id="copyLinkBtn">复制链接</button>
+    </div>
   </div>
 </div>
 
 <script>
-  const params = new URLSearchParams(location.search);
-  let roomId = params.get('room') || params.get('code') || params.get('session');
-  let isConnected = false;
-  let trtc = null;
-  let currentSubtitle = { roundId: 'initial', source_text: '', translations: {}, ended: true };
-  let subtitleRoundStore = new Map();
-  let historyList = [];
-  let targetLang = localStorage.getItem('student_lang') || 'en';
-  let reviewMode = 'teacher';
-  let reviewText = '';
+const params = new URLSearchParams(location.search);
+function normalizeRoomCode(value) {
+  return String(value || '').trim().replace(/\D/g, '').slice(0, 6);
+}
+function getRoomCodeFromUrl() {
+  return normalizeRoomCode(
+    params.get('room') ||
+    params.get('code') ||
+    params.get('session') ||
+    params.get('classroom')
+  );
+}
+let roomId = getRoomCodeFromUrl();
+let trtc = null;
+let currentSubtitle = { roundId: 'initial', source_text: '', translations: {}, ended: true };
+let subtitleRoundStore = new Map();
+let historyList = [];
+let reviewMode = 'teacher';
+let reviewText = '';
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'th', label: 'ไทย' },
+  { value: 'vi', label: 'Tiếng Việt' },
+  { value: 'id', label: 'Bahasa Indonesia' },
+  { value: 'ms', label: 'Bahasa Melayu' },
+  { value: 'fr', label: 'Français' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ru', label: 'Русский' },
+  { value: 'ko', label: '한국어' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'es', label: 'Español' },
+  { value: 'pt', label: 'Português' },
+  { value: 'zh', label: '中文 (简体)' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'ar', label: 'العربية' }
+];
+let selectedTargetLang = localStorage.getItem('student_lang') || 'en';
 
-  const sessionInputArea = document.getElementById('sessionInputArea');
-  const mainContent = document.getElementById('mainContent');
-  const roomCodeInput = document.getElementById('roomCodeInput');
-  const confirmSessionBtn = document.getElementById('confirmSessionBtn');
-  const statusDiv = document.getElementById('status');
-  const sourceDiv = document.getElementById('source');
-  const nativeDiv = document.getElementById('native');
-  const langSelect = document.getElementById('lang');
-  const historyDiv = document.getElementById('history');
-  const fullscreenContainer = document.getElementById('fullscreenContainer');
-  const btnDefault = document.getElementById('btnDefault');
-  const btnMedium = document.getElementById('btnMedium');
-  const btnLarge = document.getElementById('btnLarge');
-  const btnFocus = document.getElementById('btnFocus');
-  const exitFocusBtn = document.getElementById('exitFocusBtn');
-  const reviewHeader = document.getElementById('reviewHeader');
-  const reviewContent = document.getElementById('reviewContent');
-  const reviewToggleText = document.getElementById('reviewToggleText');
-  const modeTeacher = document.getElementById('modeTeacher');
-  const modeStudent = document.getElementById('modeStudent');
-  const modeDual = document.getElementById('modeDual');
-  const generateBtn = document.getElementById('generateBtn');
-  const downloadBtn = document.getElementById('downloadBtn');
-  const previewContent = document.getElementById('previewContent');
-  const minimizeBtn = document.getElementById('minimizeBtn');
-  const openWindowBtn = document.getElementById('openWindowBtn');
-  const copyLinkBtn = document.getElementById('copyLinkBtn');
+const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
+const SDKAPPID = 1600133369;
+const SUPPORTED_TRANSLATION_LANGS = LANGUAGE_OPTIONS.map(item => item.value);
+if (!SUPPORTED_TRANSLATION_LANGS.includes(selectedTargetLang)) selectedTargetLang = 'en';
 
-  const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
-  const SDKAPPID = 1600133369;
+const page = document.getElementById('page');
+const sessionInputArea = document.getElementById('sessionInputArea');
+const mainContent = document.getElementById('mainContent');
+const roomCodeInput = document.getElementById('roomCodeInput');
+const confirmSessionBtn = document.getElementById('confirmSessionBtn');
+const statusDiv = document.getElementById('status');
+const sourceDiv = document.getElementById('source');
+const nativeDiv = document.getElementById('native');
+const historyDiv = document.getElementById('history');
+const reviewHeader = document.getElementById('reviewHeader');
+const reviewContent = document.getElementById('reviewContent');
+const reviewToggleText = document.getElementById('reviewToggleText');
+const modeTeacher = document.getElementById('modeTeacher');
+const modeStudent = document.getElementById('modeStudent');
+const modeDual = document.getElementById('modeDual');
+const generateBtn = document.getElementById('generateBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const previewContent = document.getElementById('previewContent');
+const btnDefault = document.getElementById('btnDefault');
+const btnMedium = document.getElementById('btnMedium');
+const btnLarge = document.getElementById('btnLarge');
+const btnFocus = document.getElementById('btnFocus');
+const exitFocusBtn = document.getElementById('exitFocusBtn');
+const toolbarToggle = document.getElementById('toolbarToggle');
+const toolbarPanel = document.getElementById('toolbarPanel');
+const toolbarHideBtn = document.getElementById('toolbarHideBtn');
+const langGrid = document.getElementById('langGrid');
+const langConfirmBtn = document.getElementById('langConfirmBtn');
+const openWindowBtn = document.getElementById('openWindowBtn');
+const copyLinkBtn = document.getElementById('copyLinkBtn');
 
-  const SUPPORTED_TRANSLATION_LANGS = ['zh','en','es','pt','fr','de','ru','ar','ja','ko','vi','ms','id','it','th'];
-  if (!SUPPORTED_TRANSLATION_LANGS.includes(targetLang)) targetLang = 'en';
+function safeStringify(value) {
+  try { return JSON.stringify(value); } catch { return String(value); }
+}
 
-  function mergeTranslationMap(target, candidate) {
-    if (!candidate || typeof candidate !== 'object') return target;
-    Object.entries(candidate).forEach(([lang, value]) => {
-      const key = String(lang || '').trim();
-      if (!key) return;
-      if (typeof value === 'string' && value.trim()) {
-        target[key] = value.trim();
-        return;
-      }
-      if (value && typeof value === 'object') {
-        const nested = [value.text, value.translation_text, value.translationText, value.value, value.target_text, value.targetText].find(v => typeof v === 'string' && v.trim());
-        if (nested) target[key] = nested.trim();
-      }
-    });
-    return target;
-  }
-
-  
-  window.addEventListener('unhandledrejection', function(event) {
-    console.error('UNHANDLED_REJECTION', event.reason);
-  });
-  window.addEventListener('error', function(event) {
-    console.error('WINDOW_ERROR', event.message, event.filename, event.lineno, event.error);
-  });
-  
-
-  function safeStringify(value) {
-    try {
-      return JSON.stringify(value);
-    } catch (e) {
-      return String(value);
-    }
-  }
-
-  function pickFirstNonEmptyString(values) {
-    for (const value of values) {
-      if (typeof value === 'string' && value.trim()) return value.trim();
-    }
-    return '';
-  }
-
-  function decodeCustomMessageData(data) {
-    if (!data) return null;
-    try {
-      if (data instanceof ArrayBuffer) {
-        const decoded = new TextDecoder().decode(data);
-        return decoded ? JSON.parse(decoded) : null;
-      }
-      if (ArrayBuffer.isView(data)) {
-        const decoded = new TextDecoder().decode(data);
-        return decoded ? JSON.parse(decoded) : null;
-      }
-      if (typeof data === 'string') {
-        return JSON.parse(data);
-      }
-      return data;
-    } catch (e) {
-      console.warn('STUDENT CUSTOM_MESSAGE decode failed', e, data);
-      return null;
-    }
-  }
-
-  function normalizeSubtitleMessage(msg) {
-    const payload = (msg && typeof msg === 'object' && msg.payload && typeof msg.payload === 'object') ? msg.payload : {};
-    const typeValue = (msg && msg.type != null) ? Number(msg.type) : NaN;
-    const type = Number.isFinite(typeValue) ? typeValue : 0;
-    const sourceText = pickFirstNonEmptyString([
-      payload.text,
-      payload.source_text,
-      payload.sourceText,
-      payload.original_text,
-      payload.originalText,
-      msg && msg.source_text,
-      msg && msg.text
-    ]);
-    const translationText = pickFirstNonEmptyString([
-      payload.translation_text,
-      payload.translationText,
-      payload.translated_text,
-      payload.translatedText,
-      payload.target_text,
-      payload.targetText,
-      msg && msg.translation_text,
-      msg && msg.translationText
-    ]);
-    const translationLanguage = pickFirstNonEmptyString([
-      payload.translation_language,
-      payload.translationLanguage,
-      payload.target_language,
-      payload.targetLanguage,
-      payload.lang,
-      msg && msg.translation_language
-    ]);
-    const translations = mergeTranslationMap(
-      mergeTranslationMap({}, payload.translations),
-      (msg && msg.translations)
-    );
-    if (translationText) {
-      translations[translationLanguage || 'default'] = translationText;
-    }
-    const roundId = pickFirstNonEmptyString([
-      payload.roundid,
-      payload.roundId,
-      payload.id,
-      msg && msg.roundid,
-      msg && msg.roundId
-    ]) || 'default';
-    const endFlag = payload.end;
-    const end = typeof endFlag === 'boolean' ? endFlag : !!(payload.is_final || payload.final || (msg && msg.end));
-    const sender = pickFirstNonEmptyString([msg && msg.sender, msg && msg.userId, payload.sender]);
-    const statusMessage = pickFirstNonEmptyString([
-      payload.message,
-      payload.status,
-      payload.metric,
-      payload.code != null ? String(payload.code) : ''
-    ]);
-
-    return {
-      raw: msg,
-      payload,
-      type,
-      roundId,
-      sourceText,
-      translationText,
-      translationLanguage,
-      translations,
-      end,
-      sender,
-      statusMessage,
-      isSubtitleLike: type === 10000 || !!sourceText || !!translationText
-    };
-  }
-
-  function mergeSubtitleRound(store, normalized) {
-    const roundId = normalized.roundId || 'default';
-    const existing = store.get(roundId) || { roundId: roundId, source_text: '', translations: {}, ended: false, updatedAt: 0 };
-    const merged = {
-      roundId: roundId,
-      source_text: normalized.sourceText || existing.source_text || '',
-      translations: Object.assign({}, existing.translations),
-      ended: normalized.end,
-      updatedAt: Date.now()
-    };
-
-    mergeTranslationMap(merged.translations, normalized.translations);
-    if (normalized.translationText) {
-      merged.translations[normalized.translationLanguage || 'default'] = normalized.translationText;
-    }
-
-    if (!normalized.sourceText && !normalized.translationText) {
-      merged.ended = existing.ended;
-    }
-
-    store.set(roundId, merged);
-    return merged;
-  }
-
-  function renderCurrentSubtitle() {
-    sourceDiv.textContent = currentSubtitle.source_text || '等待字幕… / Waiting for subtitles...';
-    nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '（暂无翻译）';
-  }
-
-  function pushHistorySnapshot(snapshot) {
-    const current = snapshot || currentSubtitle;
-    const source = (current.source_text || '').trim();
-    if (!source) return;
-    const translation = getPreferredTranslation(current.translations) || '';
-    const previous = historyList[0];
-    if (previous && previous.source === source) {
-      previous.translation = translation;
-      previous.translations = Object.assign({}, current.translations);
-      previous.timestamp = new Date().toLocaleTimeString();
-    } else {
-      historyList.unshift({
-        source,
-        translation,
-        timestamp: new Date().toLocaleTimeString(),
-        translations: Object.assign({}, current.translations)
-      });
-      if (historyList.length > 50) historyList.pop();
-    }
-    renderHistory();
-  }
-
-  function escapeHtml(str) {
-    return String(str ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
-  }
-
-  async function postJson(url, params) {
-    let response;
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params)
-      });
-    } catch (networkErr) {
-      throw new Error(`网络请求失败：${networkErr?.message || networkErr}`);
-    }
-
-    const rawText = await response.text().catch(() => '');
-    let data = null;
-    try {
-      data = rawText ? JSON.parse(rawText) : null;
-    } catch (e) {
-      throw new Error(`接口返回非 JSON（${response.status}）：${rawText || 'empty response'}`);
-    }
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${rawText || JSON.stringify(data)}`);
-    }
-    if (data && data.error) {
-      throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
-    }
-    return data || {};
-  }
-
-  async function getUserSig(userId, roomId) {
-    const data = await postJson(GET_USERSIG_URL, { userId, roomId });
-    if (!data.userSig) throw new Error('获取 UserSig 失败');
-    return data.userSig;
-  }
-
-  function getPreferredTranslation(translations) {
-    const map = translations || {};
-    return map[targetLang] || Object.values(map)[0] || '';
-  }
-
-  function renderHistory() {
-    if (historyList.length === 0) {
-      historyDiv.innerHTML = '<div class="small">暂无历史记录</div>';
+function mergeTranslationMap(target, candidate) {
+  if (!candidate || typeof candidate !== 'object') return target;
+  Object.entries(candidate).forEach(([lang, value]) => {
+    const key = String(lang || '').trim();
+    if (!key) return;
+    if (typeof value === 'string' && value.trim()) {
+      target[key] = value.trim();
       return;
     }
-    historyDiv.innerHTML = historyList.slice(0, 12).map((item, index) => {
-      const translated = item.translations?.[targetLang] || Object.values(item.translations || {})[0] || item.translation || '';
-      const tierClass = index === 0 ? 'tier-1' : index === 1 ? 'tier-2' : index === 2 ? 'tier-3' : 'tier-4';
-      return `
-        <div class="history-item ${tierClass}">
-          <div class="history-source">${escapeHtml(item.source)}</div>
-          <div class="history-translation">${escapeHtml(translated || '（暂无翻译）')}</div>
-          <div class="history-time">${escapeHtml(item.timestamp)}</div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  async function startConnection(room) {
-    const userId = `student_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    try {
-      statusDiv.textContent = '正在获取用户签名...';
-      const userSig = await getUserSig(userId, room);
-      trtc = TRTC.create();
-      trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
-      await trtc.enterRoom({
-        sdkAppId: SDKAPPID,
-        roomId: parseInt(room, 10),
-        scene: 'rtc',
-        userId,
-        userSig,
-      });
-      isConnected = true;
-      statusDiv.textContent = '已连接课堂 / Connected';
-    } catch (err) {
-      console.error('student connect failed:', err);
-      statusDiv.textContent = '连接失败：' + (err?.message || String(err));
+    if (value && typeof value === 'object') {
+      const nested = [value.text, value.translation_text, value.translationText, value.value, value.target_text, value.targetText].find(v => typeof v === 'string' && v.trim());
+      if (nested) target[key] = nested.trim();
     }
+  });
+  return target;
+}
+
+function pickFirstNonEmptyString(values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim();
   }
+  return '';
+}
 
-
-  function onCustomMessage(event) {
-    const msg = decodeCustomMessageData(event.data);
-    if (!msg) return;
-
-    console.log('STUDENT CUSTOM_MESSAGE decoded JSON:', safeStringify(msg));
-    const normalized = normalizeSubtitleMessage(msg);
-    console.log('STUDENT CUSTOM_MESSAGE normalized JSON:', safeStringify({
-      type: normalized.type,
-      roundId: normalized.roundId,
-      sender: normalized.sender,
-      sourceText: normalized.sourceText,
-      translationText: normalized.translationText,
-      translationLanguage: normalized.translationLanguage,
-      end: normalized.end,
-      statusMessage: normalized.statusMessage
-    }));
-
-    if (!normalized.isSubtitleLike) {
-      if (normalized.type === 10001) {
-        statusDiv.textContent = '已连接课堂 / AI status: ' + (normalized.statusMessage || 'received');
-      } else if (normalized.type === 10030) {
-        statusDiv.textContent = 'AI service error: ' + (normalized.statusMessage || safeStringify(normalized.payload));
-      }
-      return;
+function decodeCustomMessageData(data) {
+  if (!data) return null;
+  try {
+    if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
+      const decoded = new TextDecoder().decode(data);
+      return decoded ? JSON.parse(decoded) : null;
     }
+    if (typeof data === 'string') return JSON.parse(data);
+    return data;
+  } catch (e) {
+    console.warn('STUDENT CUSTOM_MESSAGE decode failed', e, data);
+    return null;
+  }
+}
 
-    const merged = mergeSubtitleRound(subtitleRoundStore, normalized);
+function normalizeSubtitleMessage(msg) {
+  const payload = (msg && typeof msg === 'object' && msg.payload && typeof msg.payload === 'object') ? msg.payload : {};
+  const typeValue = (msg && msg.type != null) ? Number(msg.type) : NaN;
+  const type = Number.isFinite(typeValue) ? typeValue : 0;
+  const sourceText = pickFirstNonEmptyString([payload.text, payload.source_text, payload.sourceText, msg && msg.source_text, msg && msg.text]);
+  const translationText = pickFirstNonEmptyString([payload.translation_text, payload.translationText, payload.target_text, msg && msg.translation_text]);
+  const translationLanguage = pickFirstNonEmptyString([payload.translation_language, payload.translationLanguage, payload.target_language, msg && msg.translation_language]);
+  const translations = mergeTranslationMap(mergeTranslationMap({}, payload.translations), msg && msg.translations);
+  if (translationText) translations[translationLanguage || 'default'] = translationText;
+  const roundId = pickFirstNonEmptyString([payload.roundid, payload.roundId, msg && msg.roundid, msg && msg.roundId]) || 'default';
+  const end = typeof payload.end === 'boolean' ? payload.end : !!(payload.is_final || payload.final || (msg && msg.end));
+  const statusMessage = pickFirstNonEmptyString([payload.message, payload.status, payload.metric, payload.code != null ? String(payload.code) : '']);
+  return { raw: msg, payload, type, roundId, sourceText, translationText, translationLanguage, translations, end, statusMessage, sender: pickFirstNonEmptyString([msg && msg.sender, msg && msg.userId, payload.sender]), isSubtitleLike: type === 10000 || !!sourceText || !!translationText || msg.cmd === 'translated_subtitle' };
+}
+
+function mergeSubtitleRound(store, normalized) {
+  const roundId = normalized.roundId || 'default';
+  const existing = store.get(roundId) || { roundId, source_text: '', translations: {}, ended: false, updatedAt: 0 };
+  const merged = { roundId, source_text: normalized.sourceText || existing.source_text || '', translations: Object.assign({}, existing.translations), ended: normalized.end, updatedAt: Date.now() };
+  mergeTranslationMap(merged.translations, normalized.translations);
+  if (normalized.translationText) merged.translations[normalized.translationLanguage || 'default'] = normalized.translationText;
+  if (!normalized.sourceText && !normalized.translationText) merged.ended = existing.ended;
+  store.set(roundId, merged);
+  return merged;
+}
+
+function renderLangChooser() {
+  langGrid.innerHTML = LANGUAGE_OPTIONS.map(item => {
+    const checked = item.value === selectedTargetLang ? 'checked' : '';
+    return `<label class="lang-option"><input type="checkbox" value="${item.value}" ${checked}><span>${item.label}</span></label>`;
+  }).join('');
+}
+
+function getChosenLang() {
+  const checked = Array.from(langGrid.querySelectorAll('input:checked')).map(input => input.value).filter(v => SUPPORTED_TRANSLATION_LANGS.includes(v));
+  return checked[0] || selectedTargetLang || 'en';
+}
+
+function getPreferredTranslation(translations) {
+  const map = translations || {};
+  return map[selectedTargetLang] || Object.values(map)[0] || '';
+}
+
+function renderCurrentSubtitle() {
+  sourceDiv.textContent = currentSubtitle.source_text || '等待字幕...';
+  nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '（暂无翻译）';
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
+
+function pushHistorySnapshot(snapshot) {
+  const current = snapshot || currentSubtitle;
+  const source = (current.source_text || '').trim();
+  if (!source) return;
+  const translation = getPreferredTranslation(current.translations) || '';
+  const previous = historyList[0];
+  if (previous && previous.source === source) {
+    previous.translation = translation;
+    previous.translations = Object.assign({}, current.translations);
+    previous.timestamp = new Date().toLocaleTimeString();
+  } else {
+    historyList.unshift({ source, translation, timestamp: new Date().toLocaleTimeString(), translations: Object.assign({}, current.translations) });
+    if (historyList.length > 50) historyList.pop();
+  }
+  renderHistory();
+}
+
+function renderHistory() {
+  if (historyList.length === 0) {
+    historyDiv.innerHTML = '<div class="small">暂无历史记录</div>';
+    return;
+  }
+  historyDiv.innerHTML = historyList.map(item => {
+    const translated = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
+    return `<div class="item"><div>${escapeHtml(item.source)}</div><div class="small" style="color:#e9d98e; margin-top:4px;">${escapeHtml(translated || '（暂无翻译）')}</div><div class="small">${escapeHtml(item.timestamp)}</div></div>`;
+  }).join('');
+}
+
+async function postJson(url, params) {
+  let response;
+  try {
+    response = await fetch(url, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+  } catch (networkErr) {
+    throw new Error(`网络请求失败：${networkErr?.message || networkErr}`);
+  }
+  const rawText = await response.text().catch(() => '');
+  let data = null;
+  try { data = rawText ? JSON.parse(rawText) : null; } catch { throw new Error(`接口返回非 JSON（${response.status}）：${rawText || 'empty response'}`); }
+  if (!response.ok) throw new Error(`HTTP ${response.status}: ${rawText || JSON.stringify(data)}`);
+  if (data && data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+  return data || {};
+}
+
+async function getUserSig(userId, roomId) {
+  const data = await postJson(GET_USERSIG_URL, { userId, roomId });
+  if (!data.userSig) throw new Error('获取 UserSig 失败');
+  return data.userSig;
+}
+
+async function startConnection(room) {
+  const userId = `student_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  try {
+    statusDiv.textContent = '正在获取用户签名...';
+    const userSig = await getUserSig(userId, room);
+    trtc = TRTC.create();
+    trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
+    await trtc.enterRoom({ sdkAppId: SDKAPPID, roomId: parseInt(room, 10), scene: 'rtc', userId, userSig });
+    statusDiv.textContent = '已连接课堂';
+  } catch (err) {
+    console.error('student connect failed:', err);
+    statusDiv.textContent = '连接失败：' + (err?.message || String(err));
+  }
+}
+
+function onCustomMessage(event) {
+  const msg = decodeCustomMessageData(event.data);
+  if (!msg) return;
+  console.log('STUDENT CUSTOM_MESSAGE decoded JSON:', safeStringify(msg));
+
+  if (msg.cmd === 'translated_subtitle') {
+    const merged = { roundId: String(msg.roundId || Date.now()), source_text: msg.source_text || '', translations: msg.translations || {}, ended: !!msg.end };
     currentSubtitle = merged;
     renderCurrentSubtitle();
     statusDiv.textContent = '已连接课堂 / Receiving subtitles';
-
-    if (merged.ended) {
-      pushHistorySnapshot(merged);
-    }
+    if (merged.ended) pushHistorySnapshot(merged);
+    return;
   }
 
-  function setFontClass(className) {
-    fullscreenContainer.classList.remove('font-default', 'font-medium', 'font-large');
-    fullscreenContainer.classList.add(className);
+  const normalized = normalizeSubtitleMessage(msg);
+  console.log('STUDENT CUSTOM_MESSAGE normalized JSON:', safeStringify({ type: normalized.type, roundId: normalized.roundId, sender: normalized.sender, sourceText: normalized.sourceText, end: normalized.end, statusMessage: normalized.statusMessage }));
+  if (!normalized.isSubtitleLike) {
+    if (normalized.type === 10001) statusDiv.textContent = '已连接课堂 / AI status: ' + (normalized.statusMessage || 'received');
+    else if (normalized.type === 10030) statusDiv.textContent = 'AI service error: ' + (normalized.statusMessage || safeStringify(normalized.payload));
+    return;
   }
+  const merged = mergeSubtitleRound(subtitleRoundStore, normalized);
+  currentSubtitle = merged;
+  renderCurrentSubtitle();
+  statusDiv.textContent = '已连接课堂 / Receiving subtitles';
+  if (merged.ended) pushHistorySnapshot(merged);
+}
 
-  function enterFocusMode() {
-    fullscreenContainer.classList.add('focus-mode');
-    exitFocusBtn.style.display = 'block';
-  }
+function setFontClass(className) {
+  page.classList.remove('font-default', 'font-medium', 'font-large');
+  page.classList.add(className);
+}
 
-  function exitFocusMode() {
-    fullscreenContainer.classList.remove('focus-mode');
-    exitFocusBtn.style.display = 'none';
-  }
-
-  function setReviewMode(mode) {
-    reviewMode = mode;
-    [modeTeacher, modeStudent, modeDual].forEach(btn => btn.classList.remove('active'));
-    if (mode === 'teacher') modeTeacher.classList.add('active');
-    if (mode === 'student') modeStudent.classList.add('active');
-    if (mode === 'dual') modeDual.classList.add('active');
-  }
-
-  function buildReviewText() {
-    if (!historyList.length) return '暂无课堂记录。';
-    const lines = historyList.slice().reverse().map(item => {
-      const teacher = item.source || '';
-      const student = item.translations?.[targetLang] || Object.values(item.translations || {})[0] || item.translation || '';
-      if (reviewMode === 'teacher') return teacher;
-      if (reviewMode === 'student') return student || teacher;
-      return `老师: ${teacher}\n学生: ${student || '（暂无翻译）'}`;
-    });
-    return lines.join('\n\n');
-  }
-
-  function downloadReview() {
-    if (!reviewText) return;
-    const blob = new Blob([reviewText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `class-review-${roomId || 'session'}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  if (!roomId) {
-    sessionInputArea.style.display = 'block';
-    mainContent.style.display = 'none';
-  } else {
-    sessionInputArea.style.display = 'none';
-    mainContent.style.display = 'block';
-    startConnection(roomId);
-  }
-
-  confirmSessionBtn.addEventListener('click', () => {
-    const inputCode = roomCodeInput.value.trim();
-    if (!inputCode) {
-      alert('请输入课程码 / Please enter session code');
-      return;
-    }
-    const url = new URL(location.href);
-    url.searchParams.set('room', inputCode);
-    location.href = url.toString();
+function enterFocusMode() {
+  page.classList.add('focus-mode');
+  exitFocusBtn.style.display = 'block';
+}
+function exitFocusMode() {
+  page.classList.remove('focus-mode');
+  exitFocusBtn.style.display = 'none';
+}
+function setReviewMode(mode) {
+  reviewMode = mode;
+  [modeTeacher, modeStudent, modeDual].forEach(btn => btn.classList.remove('active'));
+  if (mode === 'teacher') modeTeacher.classList.add('active');
+  if (mode === 'student') modeStudent.classList.add('active');
+  if (mode === 'dual') modeDual.classList.add('active');
+}
+function buildReviewText() {
+  if (!historyList.length) return '暂无课堂记录。';
+  const lines = historyList.slice().reverse().map(item => {
+    const teacher = item.source || '';
+    const student = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
+    if (reviewMode === 'teacher') return teacher;
+    if (reviewMode === 'student') return student || teacher;
+    return `老师: ${teacher}\n学生: ${student || '（暂无翻译）'}`;
   });
+  return lines.join('\n\n');
+}
+function downloadReview() {
+  if (!reviewText) return;
+  const blob = new Blob([reviewText], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `class-review-${roomId || 'session'}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
-  roomCodeInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') confirmSessionBtn.click();
-  });
+if (!roomId) {
+  sessionInputArea.style.display = 'block';
+  mainContent.style.display = 'none';
+} else {
+  roomCodeInput.value = roomId;
+  sessionInputArea.style.display = 'none';
+  mainContent.style.display = 'block';
+  startConnection(roomId);
+}
 
-  langSelect.value = targetLang;
-  langSelect.addEventListener('change', () => {
-    targetLang = langSelect.value;
-    localStorage.setItem('student_lang', targetLang);
-    nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '（暂无翻译）';
-    renderHistory();
-  });
+confirmSessionBtn.addEventListener('click', () => {
+  const inputCode = normalizeRoomCode(roomCodeInput.value);
+  if (!inputCode) { alert('请输入有效课程码'); return; }
+  const url = new URL(location.href);
+  url.search = '';
+  url.searchParams.set('room', inputCode);
+  url.searchParams.set('code', inputCode);
+  location.href = url.toString();
+});
+roomCodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') confirmSessionBtn.click(); });
 
-  btnDefault.addEventListener('click', () => setFontClass('font-default'));
-  btnMedium.addEventListener('click', () => setFontClass('font-medium'));
-  btnLarge.addEventListener('click', () => setFontClass('font-large'));
-  btnFocus.addEventListener('click', enterFocusMode);
-  exitFocusBtn.addEventListener('click', exitFocusMode);
-
-  reviewHeader.addEventListener('click', () => {
-    const willShow = reviewContent.style.display === 'none';
-    reviewContent.style.display = willShow ? 'block' : 'none';
-    reviewToggleText.textContent = willShow ? '▲ 点击展开/折叠 Click to expand' : '▼ 点击展开/折叠 Click to expand';
-  });
-
-  modeTeacher.addEventListener('click', () => setReviewMode('teacher'));
-  modeStudent.addEventListener('click', () => setReviewMode('student'));
-  modeDual.addEventListener('click', () => setReviewMode('dual'));
-  generateBtn.addEventListener('click', () => {
-    reviewText = buildReviewText();
-    previewContent.textContent = reviewText;
-    downloadBtn.disabled = !reviewText;
-  });
-  downloadBtn.addEventListener('click', downloadReview);
-
-  minimizeBtn.addEventListener('click', () => {
-    alert('当前版本保留了按钮入口；如需我再补完整悬浮窗逻辑，我可以继续给你。');
-  });
-  openWindowBtn.addEventListener('click', () => {
-    window.open(location.href, '_blank', 'width=1100,height=800');
-  });
-  copyLinkBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(location.href);
-      alert('链接已复制');
-    } catch {
-      alert('复制失败，请手动复制');
-    }
-  });
-
+renderLangChooser();
+langConfirmBtn.addEventListener('click', () => {
+  selectedTargetLang = getChosenLang();
+  localStorage.setItem('student_lang', selectedTargetLang);
+  Array.from(langGrid.querySelectorAll('input')).forEach(input => { input.checked = input.value === selectedTargetLang; });
+  renderCurrentSubtitle();
   renderHistory();
+  toolbarPanel.classList.remove('open');
+  statusDiv.textContent = '已切换显示语种：' + (LANGUAGE_OPTIONS.find(item => item.value === selectedTargetLang)?.label || selectedTargetLang);
+});
+
+btnDefault.addEventListener('click', () => setFontClass('font-default'));
+btnMedium.addEventListener('click', () => setFontClass('font-medium'));
+btnLarge.addEventListener('click', () => setFontClass('font-large'));
+btnFocus.addEventListener('click', enterFocusMode);
+exitFocusBtn.addEventListener('click', exitFocusMode);
+
+toolbarToggle.addEventListener('click', () => toolbarPanel.classList.toggle('open'));
+toolbarHideBtn.addEventListener('click', () => toolbarPanel.classList.remove('open'));
+openWindowBtn.addEventListener('click', () => window.open(location.href, '_blank', 'width=1100,height=800'));
+copyLinkBtn.addEventListener('click', async () => {
+  try {
+    const url = new URL(location.href);
+    const code = normalizeRoomCode(roomId || roomCodeInput.value);
+    if (code) {
+      url.search = '';
+      url.searchParams.set('room', code);
+      url.searchParams.set('code', code);
+    }
+    await navigator.clipboard.writeText(url.toString());
+    alert('链接已复制');
+  } catch {
+    alert('复制失败，请手动复制');
+  }
+});
+
+reviewHeader.addEventListener('click', () => {
+  const willShow = reviewContent.style.display === 'none';
+  reviewContent.style.display = willShow ? 'block' : 'none';
+  reviewToggleText.textContent = willShow ? '▲ 点击展开/折叠' : '▼ 点击展开/折叠';
+});
+modeTeacher.addEventListener('click', () => setReviewMode('teacher'));
+modeStudent.addEventListener('click', () => setReviewMode('student'));
+modeDual.addEventListener('click', () => setReviewMode('dual'));
+generateBtn.addEventListener('click', () => { reviewText = buildReviewText(); previewContent.textContent = reviewText; downloadBtn.disabled = !reviewText; });
+downloadBtn.addEventListener('click', downloadReview);
+
+renderHistory();
 </script>
 </body>
 </html>
