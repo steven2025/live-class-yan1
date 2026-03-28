@@ -80,7 +80,7 @@
       </div>
 
       <div id="langPanel" class="lang-panel">
-        <div class="small">勾选本节课需要翻译的语种，确认后生效。只翻译勾选的语种，避免浪费。</div>
+        <div class="small">设置教师端默认兜底语种；如果学生端已上报当前语种，则优先按在线学生实际语种自动翻译。</div>
         <div id="langGrid" class="lang-grid"></div>
         <div class="lang-panel-actions">
           <button id="confirmLangBtn" class="confirm-btn">确认语种</button>
@@ -128,9 +128,15 @@ let localHistory = [];
 let currentSubtitleState = { roundId: 'initial', sourceText: '', translations: {}, ended: true };
 let subtitleRoundStore = new Map();
 let subtitleSeq = 0;
-let lastTranslatedSource = '';
 let teacherUserId = '';
 let appliedTargetLanguages = JSON.parse(localStorage.getItem('teacher_target_langs') || '["en"]');
+const studentLanguageMap = new Map();
+const roundTranslationState = new Map();
+const PRE_TRANSLATE_MIN_TEXT = 6;
+const PRE_TRANSLATE_MIN_NEW_CHARS = 5;
+const PRE_TRANSLATE_INTERVAL_MS = 800;
+const PRE_TRANSLATE_LONG_TEXT = 14;
+const PRE_TRANSLATE_PUNCTUATION = /[，。！？；：,.!?;:]$/;
 
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
@@ -198,7 +204,61 @@ function getPanelSelectedLanguages() {
 
 function renderLanguageSummary() {
   const labels = LANGUAGE_OPTIONS.filter(item => appliedTargetLanguages.includes(item.value)).map(item => item.label);
-  langSummary.textContent = '当前翻译语种：' + (labels.length ? labels.join('、') : '未选择');
+  langSummary.textContent = '教师默认兜底语种：' + (labels.length ? labels.join('、') : 'English') + '；学生在线语种将自动覆盖。';
+}
+
+function getLanguageLabel(lang) {
+  return LANGUAGE_OPTIONS.find(item => item.value === lang)?.label || lang;
+}
+
+function getActiveStudentLanguages() {
+  return Array.from(new Set(Array.from(studentLanguageMap.values()).filter(lang => SUPPORTED_TRANSLATION_LANGS.includes(lang))));
+}
+
+function getEffectiveTargetLanguages() {
+  const active = getActiveStudentLanguages();
+  const fallback = appliedTargetLanguages.filter(lang => SUPPORTED_TRANSLATION_LANGS.includes(lang));
+  return active.length ? active : (fallback.length ? fallback : ['en']);
+}
+
+function updateActiveLanguageStatus() {
+  const activeLabels = getActiveStudentLanguages().map(getLanguageLabel);
+  if (activeLabels.length) {
+    statusDiv.textContent = '当前在线学生语种：' + activeLabels.join('、') + '；新字幕将自动按这些语种翻译';
+  }
+}
+
+function estimateAddedChars(currentText, lastText) {
+  if (!lastText) return currentText.length;
+  if (currentText === lastText) return 0;
+  if (currentText.startsWith(lastText)) return currentText.length - lastText.length;
+  return Math.max(currentText.length - lastText.length, PRE_TRANSLATE_MIN_NEW_CHARS);
+}
+
+function getRoundState(roundId) {
+  if (!roundTranslationState.has(roundId)) {
+    roundTranslationState.set(roundId, {
+      lastTranslatedText: '',
+      lastTranslateAt: 0,
+      finalSent: false,
+      inFlight: false,
+      pendingText: '',
+      pendingFinal: false
+    });
+  }
+  return roundTranslationState.get(roundId);
+}
+
+function shouldTriggerPreTranslate(cleanText, state) {
+  if (!cleanText || cleanText.length < PRE_TRANSLATE_MIN_TEXT) return false;
+  const since = Date.now() - (state.lastTranslateAt || 0);
+  const added = estimateAddedChars(cleanText, state.lastTranslatedText || '');
+  const hasPunctuation = PRE_TRANSLATE_PUNCTUATION.test(cleanText);
+  if (!state.lastTranslatedText && cleanText.length >= PRE_TRANSLATE_LONG_TEXT) return true;
+  if (added >= PRE_TRANSLATE_MIN_NEW_CHARS) return true;
+  if (hasPunctuation && since >= Math.floor(PRE_TRANSLATE_INTERVAL_MS / 2)) return true;
+  if (since >= PRE_TRANSLATE_INTERVAL_MS) return true;
+  return false;
 }
 
 function mergeTranslationMap(target, candidate) {
@@ -326,8 +386,8 @@ async function stopAITranscription(taskId) {
   await postJson(STOP_AI_URL, { taskId });
 }
 
-async function translateSubtitleByFunction(sourceText, isFinal) {
-  const selectedLangs = appliedTargetLanguages.filter(lang => SUPPORTED_TRANSLATION_LANGS.includes(lang));
+async function translateSubtitleByFunction(sourceText, isFinal, targetLanguages) {
+  const selectedLangs = (targetLanguages || getEffectiveTargetLanguages()).filter(lang => SUPPORTED_TRANSLATION_LANGS.includes(lang));
   if (!sourceText || !sourceText.trim()) return null;
   if (!selectedLangs.length) {
     return {
@@ -344,33 +404,67 @@ async function translateSubtitleByFunction(sourceText, isFinal) {
   return result.data;
 }
 
-async function broadcastTranslatedSubtitle(data) {
+async function broadcastTranslatedSubtitle(data, roundId) {
   if (!trtc || !data || isPaused) return;
   const message = {
-    cmd: 'translated_subtitle', from: teacherUserId || 'teacher', roundId: String(data.seq || Date.now()), source_text: data.sourceText || '', translations: data.translations || {}, end: !!data.isFinal, ts: Date.now()
+    cmd: 'translated_subtitle', from: teacherUserId || 'teacher', roundId: String(roundId || data.seq || Date.now()), source_text: data.sourceText || '', translations: data.translations || {}, end: !!data.isFinal, ts: Date.now()
   };
   console.log('sendCustomMessage payload JSON:', safeStringify(message));
   const encoded = new TextEncoder().encode(JSON.stringify(message));
   await trtc.sendCustomMessage({ cmdId: 1, data: encoded.buffer, reliable: true, ordered: true });
 }
 
-async function handleFinalSubtitleTranslation(sourceText) {
-  if (isPaused) return;
-  const cleanText = (sourceText || '').trim();
-  if (!cleanText) return;
-  if (cleanText === lastTranslatedSource) return;
-  lastTranslatedSource = cleanText;
+async function runTranslationForRound(roundId, cleanText, isFinal) {
+  const state = getRoundState(roundId);
+  if (state.inFlight) {
+    state.pendingText = cleanText;
+    state.pendingFinal = state.pendingFinal || !!isFinal;
+    return;
+  }
+  state.inFlight = true;
   try {
-    const translated = await translateSubtitleByFunction(cleanText, true);
-    currentSubtitleState = { roundId: String(translated.seq || Date.now()), sourceText: translated.sourceText || cleanText, translations: translated.translations || {}, ended: true };
+    const targetLangs = getEffectiveTargetLanguages();
+    const translated = await translateSubtitleByFunction(cleanText, isFinal, targetLangs);
+    currentSubtitleState = { roundId: String(roundId), sourceText: translated.sourceText || cleanText, translations: translated.translations || {}, ended: !!isFinal };
     renderCurrentTeacherSubtitle();
-    pushTeacherHistorySnapshot(currentSubtitleState);
-    await broadcastTranslatedSubtitle(translated);
+    if (isFinal) pushTeacherHistorySnapshot(currentSubtitleState);
+    await broadcastTranslatedSubtitle(translated, roundId);
+    state.lastTranslatedText = cleanText;
+    state.lastTranslateAt = Date.now();
+    if (isFinal) state.finalSent = true;
   } catch (err) {
     console.error('translate function failed:', err);
     statusDiv.textContent = '翻译函数失败：' + (err && err.message ? err.message : String(err));
+  } finally {
+    state.inFlight = false;
+    if (state.pendingText) {
+      const nextText = state.pendingText;
+      const nextFinal = state.pendingFinal;
+      state.pendingText = '';
+      state.pendingFinal = false;
+      if (!state.finalSent || nextFinal) {
+        await runTranslationForRound(roundId, nextText, nextFinal);
+      }
+    }
   }
 }
+
+function maybeTranslateSubtitle(roundId, sourceText, isFinal) {
+  if (isPaused) return;
+  const cleanText = (sourceText || '').trim();
+  if (!cleanText) return;
+  const state = getRoundState(roundId);
+  if (state.finalSent && !isFinal) return;
+  if (isFinal) {
+    if (state.finalSent && state.lastTranslatedText === cleanText) return;
+    runTranslationForRound(roundId, cleanText, true);
+    return;
+  }
+  if (!shouldTriggerPreTranslate(cleanText, state)) return;
+  if (cleanText === state.lastTranslatedText) return;
+  runTranslationForRound(roundId, cleanText, false);
+}
+
 
 async function startClass() {
   if (isTeaching) return;
@@ -391,6 +485,13 @@ async function startClass() {
     const userSig = await getUserSig(userId, roomId);
     trtc = TRTC.create();
     trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
+    if (TRTC.EVENT && TRTC.EVENT.REMOTE_USER_EXIT) {
+      trtc.on(TRTC.EVENT.REMOTE_USER_EXIT, event => {
+        const remoteUserId = event && event.userId;
+        if (!remoteUserId) return;
+        if (studentLanguageMap.delete(remoteUserId)) updateActiveLanguageStatus();
+      });
+    }
     await trtc.enterRoom({ sdkAppId: SDKAPPID, roomId, scene: 'rtc', userId, userSig });
     await trtc.startLocalAudio();
     isTeaching = true;
@@ -402,7 +503,7 @@ async function startClass() {
 
     try {
       currentTaskId = await startAITranscription(roomId, userId, userSig, appliedTargetLanguages);
-      statusDiv.textContent = '▶ 上课中... AI 转录已启动';
+      statusDiv.textContent = '▶ 上课中... AI 转录已启动，翻译语种将按在线学生自动调整';
     } catch (aiErr) {
       console.error('AI转录启动失败:', aiErr, JSON.stringify(aiErr, Object.getOwnPropertyNames(aiErr || {})));
       const message = (aiErr && aiErr.message) || String(aiErr || '');
@@ -453,6 +554,8 @@ async function endClass() {
     lastTranslatedSource = '';
     teacherUserId = '';
     subtitleRoundStore = new Map();
+    studentLanguageMap.clear();
+    roundTranslationState.clear();
     startBtn.disabled = false;
     pauseBtn.disabled = true;
     stopBtn.disabled = true;
@@ -466,6 +569,18 @@ function onCustomMessage(event) {
   const msg = decodeCustomMessageData(event && event.data);
   if (!msg) return;
   console.log('CUSTOM_MESSAGE decoded JSON:', safeStringify(msg));
+
+  if (msg.cmd === 'student_lang_update') {
+    const lang = typeof msg.lang === 'string' ? msg.lang.trim() : '';
+    const userId = event?.userId || msg.from;
+    if (userId && SUPPORTED_TRANSLATION_LANGS.includes(lang)) {
+      studentLanguageMap.set(userId, lang);
+      updateActiveLanguageStatus();
+    }
+    return;
+  }
+
+  if (msg.cmd === 'translated_subtitle') return;
   if (!AI_MESSAGE_TYPES.has(Number(msg.type))) return;
   const normalized = normalizeSubtitleMessage(msg);
   console.log('CUSTOM_MESSAGE normalized JSON:', safeStringify({ type: normalized.type, roundId: normalized.roundId, sourceText: normalized.sourceText, end: normalized.end, statusMessage: normalized.statusMessage }));
@@ -485,7 +600,7 @@ function onCustomMessage(event) {
   currentSubtitleState = merged;
   renderCurrentTeacherSubtitle();
   if (!isPaused) statusDiv.textContent = '▶ 上课中... 正在接收字幕';
-  if (merged.ended && merged.sourceText) handleFinalSubtitleTranslation(merged.sourceText);
+  maybeTranslateSubtitle(merged.roundId, merged.sourceText, merged.ended);
 }
 
 function buildStudentUrl(sessionCode) {
@@ -512,14 +627,15 @@ async function createNewSession() {
   sessionInfoDiv.style.display = 'block';
   generateQRCodeWithSession(currentSession);
   subtitleSeq = 0;
-  lastTranslatedSource = '';
   currentSubtitleState = { roundId: 'initial', sourceText: '', translations: {}, ended: true };
   subtitleRoundStore = new Map();
+  studentLanguageMap.clear();
+  roundTranslationState.clear();
   sourceTextDiv.textContent = '等待语音输入...';
   startBtn.disabled = false;
   pauseBtn.disabled = true;
   stopBtn.disabled = true;
-  statusDiv.textContent = '新课程已创建，课程码：' + currentSession;
+  statusDiv.textContent = '新课程已创建，课程码：' + currentSession + '；等待学生加入后自动采集在线语种';
 }
 
 function generateQRCodeWithSession(sessionCode) {
