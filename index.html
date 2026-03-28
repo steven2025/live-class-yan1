@@ -243,34 +243,42 @@
       gap: 8px;
     }
 
+    .hero-label {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      flex-wrap: wrap;
+      line-height: 1.16;
+    }
+
     .hero-label-zh {
-      font-size: clamp(13px, 2.5vw, 16px);
+      font-size: clamp(13px, 2.3vw, 15px);
       color: var(--muted);
-      font-weight: 780;
+      font-weight: 800;
       line-height: 1.16;
     }
 
     .hero-label-en {
-      font-size: clamp(10px, 1.8vw, 12px);
+      font-size: clamp(10px, 1.7vw, 11px);
       color: var(--muted-2);
       font-weight: 700;
       line-height: 1.14;
-      margin-top: -2px;
+      white-space: nowrap;
     }
 
     .hero-source {
-      font-size: clamp(34px, 8vw, 58px);
+      font-size: clamp(36px, 8.5vw, 62px);
       font-weight: 900;
-      line-height: 1.18;
+      line-height: 1.16;
       color: #f8fbff;
       letter-spacing: -.02em;
       word-break: break-word;
     }
 
     .hero-translation {
-      font-size: clamp(38px, 9vw, 66px);
+      font-size: clamp(40px, 9.4vw, 70px);
       font-weight: 900;
-      line-height: 1.14;
+      line-height: 1.12;
       color: var(--accent);
       letter-spacing: -.02em;
       word-break: break-word;
@@ -642,18 +650,24 @@
       .hero-panel {
         padding: 12px 16px 14px;
       }
-      .hero-source { font-size: clamp(30px, 4.4vw, 50px); }
-      .hero-translation { font-size: clamp(34px, 4.8vw, 54px); }
+      .hero-label {
+        gap: 5px;
+        margin-bottom: 2px;
+      }
+      .hero-label-zh { font-size: 12px; }
+      .hero-label-en { font-size: 10px; }
+      .hero-source { font-size: clamp(33px, 4.8vw, 54px); }
+      .hero-translation { font-size: clamp(37px, 5.2vw, 58px); }
       .history-card {
-        min-height: calc(100vh - 158px);
-        max-height: calc(100vh - 158px);
-        padding: 10px 12px;
+        min-height: calc(100vh - 150px);
+        max-height: calc(100vh - 150px);
+        padding: 10px 12px 76px;
       }
       .history-header {
-        margin-bottom: 4px;
+        margin-bottom: 2px;
         gap: 8px;
       }
-      .history-title-zh { font-size: clamp(18px, 2.5vw, 24px); }
+      .history-title-zh { font-size: clamp(18px, 2.4vw, 23px); }
       .history-title-en,
       .history-note { font-size: 10px; }
       .history-list { padding-right: 2px; }
@@ -728,16 +742,20 @@
         padding: 10px 14px 12px;
         gap: 5px;
       }
-      .hero-label-zh { font-size: 12px; }
-      .hero-label-en { font-size: 10px; }
-      .hero-source { font-size: clamp(24px, 3.5vw, 34px); line-height: 1.12; }
-      .hero-translation { font-size: clamp(28px, 4vw, 40px); line-height: 1.08; }
-      .history-card {
-        min-height: calc(100vh - 132px);
-        max-height: calc(100vh - 132px);
-        padding: 8px 10px;
+      .hero-label {
+        gap: 4px;
+        margin-bottom: 1px;
       }
-      .history-header { margin-bottom: 2px; }
+      .hero-label-zh { font-size: 11px; }
+      .hero-label-en { font-size: 9px; }
+      .hero-source { font-size: clamp(26px, 3.8vw, 36px); line-height: 1.1; }
+      .hero-translation { font-size: clamp(30px, 4.3vw, 42px); line-height: 1.06; }
+      .history-card {
+        min-height: calc(100vh - 126px);
+        max-height: calc(100vh - 126px);
+        padding: 8px 10px 70px;
+      }
+      .history-header { margin-bottom: 1px; }
       .history-title-zh { font-size: 16px; }
       .history-title-en,
       .history-note { font-size: 9px; }
@@ -808,13 +826,17 @@
       <div class="content-grid">
         <div class="hero-card">
           <div class="hero-panel">
-            <div class="hero-label-zh">教师原语言</div>
-            <div class="hero-label-en">Teacher Original</div>
+            <div class="hero-label">
+              <span class="hero-label-zh">教师原语言</span>
+              <span class="hero-label-en">Teacher Original</span>
+            </div>
             <div id="source" class="hero-source">等待字幕...</div>
           </div>
           <div class="hero-panel">
-            <div class="hero-label-zh">目标翻译</div>
-            <div class="hero-label-en">Target Translation</div>
+            <div class="hero-label">
+              <span class="hero-label-zh">目标翻译</span>
+              <span class="hero-label-en">Target Translation</span>
+            </div>
             <div id="native" class="hero-translation">正在等待翻译...</div>
           </div>
         </div>
