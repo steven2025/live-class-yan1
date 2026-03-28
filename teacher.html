@@ -18,55 +18,125 @@
 
     .control-bar { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
     .icon-btn {
-      width: 88px; height: 88px; border-radius: 28px; border: 3px solid transparent; cursor: pointer;
+      width: 96px; height: 96px; border-radius: 30px; border: 3px solid rgba(255,255,255,.42); cursor: pointer;
       display: inline-flex; align-items: flex-start; justify-content: center;
-      padding-top: 14px; position: relative;
-      font-size: 34px; color: #fff; font-weight: 900;
-      box-shadow: 0 12px 30px rgba(0,0,0,.22);
+      padding-top: 14px; position: relative; overflow: hidden;
+      font-size: 36px; color: #fff; font-weight: 900;
+      text-shadow: 0 2px 0 rgba(255,255,255,.18), 0 4px 10px rgba(0,0,0,.22);
+      box-shadow: inset 0 3px 0 rgba(255,255,255,.34), inset 0 -7px 0 rgba(0,0,0,.24), 0 20px 34px rgba(0,0,0,.34), 0 7px 0 rgba(2,6,23,.72), 0 0 0 4px rgba(255,255,255,.06);
       transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    }
+    .icon-btn::before {
+      content: '';
+      position: absolute;
+      left: 8px; right: 8px; top: 7px;
+      height: 28px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255,255,255,.52), rgba(255,255,255,.08) 55%, rgba(255,255,255,0));
+      pointer-events: none;
+      mix-blend-mode: screen;
     }
     .icon-btn::after {
       content: attr(data-label);
       position: absolute;
-      left: 0; right: 0; bottom: 10px;
+      left: 9px; right: 9px; bottom: 9px;
       text-align: center;
       font-size: 12px;
       font-weight: 900;
-      letter-spacing: .02em;
-      color: currentColor;
+      letter-spacing: .08em;
+      color: rgba(255,255,255,.98);
+      text-shadow: 0 1px 0 rgba(0,0,0,.22);
+      border-radius: 999px;
+      padding: 3px 0 4px;
+      background: rgba(10, 18, 34, .18);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18);
     }
-    .icon-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 32px rgba(0,0,0,.28); }
+    .icon-btn:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: inset 0 3px 0 rgba(255,255,255,.38), inset 0 -7px 0 rgba(0,0,0,.20), 0 26px 38px rgba(0,0,0,.38), 0 9px 0 rgba(2,6,23,.76), 0 0 24px rgba(255,255,255,.08);
+      filter: saturate(1.08);
+    }
+    .icon-btn:active {
+      transform: translateY(2px) scale(.99);
+      box-shadow: inset 0 2px 0 rgba(255,255,255,.22), inset 0 -3px 0 rgba(0,0,0,.24), 0 10px 18px rgba(0,0,0,.28), 0 3px 0 rgba(2,6,23,.56);
+    }
     .icon-btn:disabled {
       opacity: 1;
       cursor: not-allowed;
       transform: none;
-      background: #334155 !important;
-      color: #94a3b8 !important;
-      border-color: #64748b !important;
-      box-shadow: none;
-      filter: grayscale(.15);
+      background: linear-gradient(180deg, #71839c 0%, #506077 55%, #3c4a60 100%) !important;
+      color: #d6deea !important;
+      border-color: rgba(221,231,246,.34) !important;
+      box-shadow: inset 0 2px 0 rgba(255,255,255,.14), inset 0 -6px 0 rgba(0,0,0,.18), 0 7px 0 rgba(15,23,42,.52), 0 14px 22px rgba(0,0,0,.22) !important;
+      filter: grayscale(.12) saturate(.8);
     }
-    .play-btn { background: #16a34a; border-color: #dcfce7; }
-    .pause-btn { background: #d97706; border-color: #fef3c7; color: #fff7ed; }
-    .stop-btn { background: #dc2626; border-color: #fee2e2; }
-    .new-session-btn { background: #2563eb; color: white; border: 2px solid #bfdbfe; border-radius: 16px; padding: 14px 18px; font-size: 16px; font-weight: 800; cursor: pointer; }
+    .play-btn {
+      background: radial-gradient(circle at 50% 18%, rgba(255,255,255,.40), rgba(255,255,255,0) 34%), linear-gradient(180deg, #86efac 0%, #22c55e 34%, #16a34a 68%, #166534 100%);
+      border-color: #dcfce7;
+    }
+    .pause-btn {
+      background: radial-gradient(circle at 50% 18%, rgba(255,255,255,.42), rgba(255,255,255,0) 34%), linear-gradient(180deg, #fde68a 0%, #f59e0b 34%, #ea580c 70%, #c2410c 100%);
+      border-color: #ffedd5;
+      color: #fff7ed;
+    }
+    .stop-btn {
+      background: radial-gradient(circle at 50% 18%, rgba(255,255,255,.40), rgba(255,255,255,0) 34%), linear-gradient(180deg, #fda4af 0%, #fb7185 28%, #ef4444 64%, #b91c1c 100%);
+      border-color: #fee2e2;
+    }
+    .new-session-btn, .login-trigger-btn {
+      position: relative; overflow: hidden;
+      border-radius: 18px; padding: 13px 18px; font-size: 16px; font-weight: 900; cursor: pointer;
+      color: #fff; border: 2px solid rgba(255,255,255,.54);
+      text-shadow: 0 1px 0 rgba(255,255,255,.10), 0 3px 8px rgba(0,0,0,.20);
+      box-shadow: inset 0 2px 0 rgba(255,255,255,.34), inset 0 -5px 0 rgba(0,0,0,.20), 0 14px 24px rgba(0,0,0,.26), 0 5px 0 rgba(2,6,23,.56), 0 0 0 3px rgba(255,255,255,.05);
+      transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    }
+    .new-session-btn::before, .login-trigger-btn::before {
+      content: '';
+      position: absolute; left: 10px; right: 10px; top: 7px; height: 18px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(255,255,255,.50), rgba(255,255,255,0));
+      pointer-events: none;
+    }
+    .new-session-btn:hover, .login-trigger-btn:hover { transform: translateY(-2px); filter: saturate(1.08) brightness(1.03); box-shadow: inset 0 2px 0 rgba(255,255,255,.36), inset 0 -5px 0 rgba(0,0,0,.18), 0 20px 30px rgba(0,0,0,.30), 0 7px 0 rgba(2,6,23,.60), 0 0 22px rgba(255,255,255,.08); }
+    .new-session-btn:active, .login-trigger-btn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.20), inset 0 -3px 0 rgba(0,0,0,.20), 0 8px 16px rgba(0,0,0,.24), 0 3px 0 rgba(2,6,23,.46); }
+    .new-session-btn {
+      min-width: 132px;
+      background: radial-gradient(circle at 50% 16%, rgba(255,255,255,.44), rgba(255,255,255,0) 36%), linear-gradient(180deg, #c4b5fd 0%, #8b5cf6 34%, #7c3aed 68%, #5b21b6 100%);
+      border-color: #ede9fe;
+    }
     .new-session-btn:disabled {
-      background: #334155; color: #94a3b8; border-color: #64748b; cursor: not-allowed;
+      background: linear-gradient(180deg, #71839c, #506077) !important; color: #d6deea !important; border-color: rgba(221,231,246,.30) !important; cursor: not-allowed; box-shadow: inset 0 2px 0 rgba(255,255,255,.12), inset 0 -4px 0 rgba(0,0,0,.18), 0 6px 0 rgba(15,23,42,.48), 0 12px 18px rgba(0,0,0,.18) !important;
     }
-    .login-trigger-btn { background: #1d4ed8; color: #ffffff; border: 2px solid #bfdbfe; border-radius: 14px; padding: 12px 16px; font-size: 14px; font-weight: 800; cursor: pointer; min-width: 86px; }
-    .login-trigger-btn:hover { background: #2563eb; }
-    .login-trigger-btn.logged-in { background: #166534; border-color: #bbf7d0; }
+    .login-trigger-btn {
+      min-width: 102px;
+      background: radial-gradient(circle at 50% 16%, rgba(255,255,255,.50), rgba(255,255,255,0) 36%), linear-gradient(180deg, #67e8f9 0%, #22d3ee 28%, #2563eb 66%, #1d4ed8 100%);
+      border-color: #dbeafe;
+      box-shadow: inset 0 2px 0 rgba(255,255,255,.40), inset 0 -5px 0 rgba(0,0,0,.22), 0 16px 28px rgba(37,99,235,.30), 0 6px 0 rgba(2,6,23,.58), 0 0 0 3px rgba(96,165,250,.12);
+    }
+    .login-trigger-btn.logged-in {
+      background: radial-gradient(circle at 50% 16%, rgba(255,255,255,.44), rgba(255,255,255,0) 36%), linear-gradient(180deg, #86efac 0%, #4ade80 32%, #16a34a 68%, #166534 100%);
+      border-color: #dcfce7;
+      box-shadow: inset 0 2px 0 rgba(255,255,255,.40), inset 0 -5px 0 rgba(0,0,0,.20), 0 16px 28px rgba(34,197,94,.24), 0 6px 0 rgba(2,6,23,.58), 0 0 0 3px rgba(74,222,128,.10);
+    }
     .locked-btn {
       opacity: 1 !important;
       cursor: not-allowed !important;
-      background: #334155 !important;
-      color: #94a3b8 !important;
-      border-color: #64748b !important;
-      box-shadow: none !important;
-      filter: grayscale(.15);
+      background: linear-gradient(180deg, #71839c, #506077) !important;
+      color: #d6deea !important;
+      border-color: rgba(221,231,246,.30) !important;
+      box-shadow: inset 0 2px 0 rgba(255,255,255,.12), inset 0 -4px 0 rgba(0,0,0,.18), 0 6px 0 rgba(15,23,42,.48), 0 12px 18px rgba(0,0,0,.18) !important;
+      filter: grayscale(.12) saturate(.8);
     }
-    .auth-badge { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: #3f1d1d; color: #fecaca; border: 1px solid #7f1d1d; }
-    .auth-badge.ok { background: #16351f; color: #bbf7d0; border-color: #22c55e; }
+    .auth-badge {
+      display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding: 8px 14px; border-radius: 999px; font-size: 13px; font-weight: 900;
+      background: linear-gradient(180deg, #7f1d1d, #4c0519); color: #ffe4e6; border: 1px solid #ef4444;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 8px 18px rgba(127,29,29,.24);
+    }
+    .auth-badge.ok {
+      background: linear-gradient(180deg, #166534, #14532d); color: #dcfce7; border-color: #4ade80;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 8px 18px rgba(22,163,74,.22);
+    }
     .auth-overlay { position: fixed; inset: 0; background: rgba(2, 6, 23, .72); display: none; align-items: center; justify-content: center; padding: 18px; z-index: 1000; }
     .auth-overlay.open { display: flex; }
     .auth-modal { width: min(420px, 100%); background: #111827; border: 1px solid #334155; border-radius: 22px; padding: 20px; box-shadow: 0 18px 48px rgba(0,0,0,.38); }
@@ -105,8 +175,8 @@
 
     @media (max-width: 640px) {
       .page { padding: 14px; }
-      .icon-btn { width: 76px; height: 76px; font-size: 28px; border-radius: 22px; padding-top: 12px; }
-      .icon-btn::after { bottom: 8px; font-size: 11px; }
+      .icon-btn { width: 82px; height: 82px; font-size: 29px; border-radius: 24px; padding-top: 11px; }
+      .icon-btn::after { left: 7px; right: 7px; bottom: 7px; font-size: 11px; }
       .teacher-text { font-size: 28px; }
     }
   </style>
@@ -377,23 +447,40 @@ function extractSegmentForBroadcast(cleanText, state, isFinal) {
     state.committedText = '';
   }
   const remainder = cleanText.slice(committed.length);
-  if (!remainder || !remainder.trim()) return null;
-  if (isFinal) return { rawSegment: remainder, segmentText: remainder.trim(), finalChunk: true };
-  const strongIdx = findLastBoundaryIndex(remainder, /[。！？!?；;]/g, 5);
+  const trimmed = remainder.trim();
+  if (!trimmed) return null;
+  if (isFinal) return { rawSegment: remainder, segmentText: trimmed, finalChunk: true };
+
+  const strongIdx = findLastBoundaryIndex(remainder, /[。！？!?；;]/g, 7);
   if (strongIdx >= 0) {
     const raw = remainder.slice(0, strongIdx + 1);
-    return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
+    if (raw.trim().length >= 7) return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
   }
+
   const idleMs = Date.now() - (state.lastSegmentAt || 0);
-  const forceCut = remainder.trim().length >= 30 || idleMs >= 2600;
-  if (!forceCut) return null;
-  const mediumIdx = findLastBoundaryIndex(remainder, /[，,、：:]/g, 8);
-  if (mediumIdx >= 0) {
-    const raw = remainder.slice(0, mediumIdx + 1);
-    return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
+  const sinceTranslate = Date.now() - (state.lastTranslateAt || 0);
+  const lengthReached = trimmed.length >= 24;
+  const waitReached = idleMs >= 1800 || sinceTranslate >= 1600;
+
+  if (lengthReached && waitReached) {
+    const mediumIdx = findLastBoundaryIndex(remainder, /[，,、：:]/g, 10);
+    if (mediumIdx >= 0) {
+      const raw = remainder.slice(0, mediumIdx + 1);
+      if (raw.trim().length >= 10) return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
+    }
   }
-  if (remainder.trim().length < 36) return null;
-  const hardRaw = remainder.slice(0, 24);
+
+  const hardCutNeeded = trimmed.length >= 40 || idleMs >= 3600;
+  if (!hardCutNeeded) return null;
+
+  const fallbackIdx = findLastBoundaryIndex(remainder, /[，,、：:。！？!?；;]/g, 12);
+  if (fallbackIdx >= 18) {
+    const raw = remainder.slice(0, fallbackIdx + 1);
+    if (raw.trim().length >= 18) return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
+  }
+
+  const sliceLen = trimmed.length >= 54 ? 30 : 26;
+  const hardRaw = remainder.slice(0, sliceLen);
   return { rawSegment: hardRaw, segmentText: hardRaw.trim(), finalChunk: false };
 }
 function shouldTriggerPreTranslate(cleanText, state) {
