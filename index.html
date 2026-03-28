@@ -631,45 +631,54 @@
       .status-meta-label { font-size: 11px; }
       .status-meta-value { font-size: 15px; }
       .content-grid {
-        grid-template-columns: minmax(0, 1.78fr) minmax(300px, 1fr);
+        grid-template-columns: minmax(0, 1.72fr) minmax(280px, 0.88fr);
         align-items: stretch;
       }
       .hero-card {
         min-height: calc(100vh - 158px);
-        padding: 14px;
+        padding: 12px;
         gap: 10px;
       }
       .hero-panel {
-        padding: 14px 16px;
+        padding: 12px 16px 14px;
       }
-      .hero-source { font-size: clamp(30px, 4.6vw, 52px); }
-      .hero-translation { font-size: clamp(34px, 5.1vw, 58px); }
+      .hero-source { font-size: clamp(30px, 4.4vw, 50px); }
+      .hero-translation { font-size: clamp(34px, 4.8vw, 54px); }
       .history-card {
         min-height: calc(100vh - 158px);
         max-height: calc(100vh - 158px);
-        padding: 12px 14px;
+        padding: 10px 12px;
       }
-      .history-item { padding: 8px 0; }
-      .history-item.level-0 .history-source { font-size: clamp(18px, 2.5vw, 24px); }
-      .history-item.level-0 .history-translation { font-size: clamp(19px, 2.7vw, 26px); }
-      .history-item.level-1 .history-source { font-size: clamp(17px, 2.3vw, 22px); }
-      .history-item.level-1 .history-translation { font-size: clamp(18px, 2.4vw, 24px); }
-      .history-item.level-2 .history-source { font-size: clamp(16px, 2.1vw, 20px); }
-      .history-item.level-2 .history-translation { font-size: clamp(17px, 2.2vw, 22px); }
-      .history-item.level-3 .history-source { font-size: clamp(15px, 2vw, 18px); }
-      .history-item.level-3 .history-translation { font-size: clamp(16px, 2.1vw, 20px); }
+      .history-header {
+        margin-bottom: 4px;
+        gap: 8px;
+      }
+      .history-title-zh { font-size: clamp(18px, 2.5vw, 24px); }
+      .history-title-en,
+      .history-note { font-size: 10px; }
+      .history-list { padding-right: 2px; }
+      .history-item { padding: 6px 0; }
+      .history-time { margin-top: 2px; font-size: 10px; }
+      .history-item.level-0 .history-source { font-size: clamp(17px, 2.2vw, 22px); }
+      .history-item.level-0 .history-translation { font-size: clamp(18px, 2.4vw, 24px); }
+      .history-item.level-1 .history-source { font-size: clamp(16px, 2vw, 20px); }
+      .history-item.level-1 .history-translation { font-size: clamp(17px, 2.1vw, 22px); }
+      .history-item.level-2 .history-source { font-size: clamp(15px, 1.85vw, 18px); }
+      .history-item.level-2 .history-translation { font-size: clamp(16px, 1.95vw, 20px); }
+      .history-item.level-3 .history-source { font-size: clamp(14px, 1.7vw, 17px); }
+      .history-item.level-3 .history-translation { font-size: clamp(15px, 1.8vw, 18px); }
       .history-item.level-4 .history-source,
       .history-item.level-5 .history-source,
       .history-item.level-6 .history-source,
       .history-item.level-7 .history-source,
       .history-item.level-8 .history-source,
-      .history-item.level-9 .history-source { font-size: clamp(14px, 1.8vw, 17px); }
+      .history-item.level-9 .history-source { font-size: clamp(13px, 1.55vw, 15px); }
       .history-item.level-4 .history-translation,
       .history-item.level-5 .history-translation,
       .history-item.level-6 .history-translation,
       .history-item.level-7 .history-translation,
       .history-item.level-8 .history-translation,
-      .history-item.level-9 .history-translation { font-size: clamp(15px, 1.9vw, 18px); }
+      .history-item.level-9 .history-translation { font-size: clamp(14px, 1.65vw, 16px); }
       .fab {
         right: 12px;
         min-width: 58px;
@@ -691,6 +700,75 @@
       .settings-sheet.open { transform: translateX(0); }
       .sheet-handle { display: none; }
       .sheet-body { padding-bottom: 18px; }
+    }
+
+    @media (orientation: landscape) and (max-height: 520px) {
+      .page {
+        padding: calc(6px + var(--safe-top)) 8px calc(62px + var(--safe-bottom));
+      }
+      .status-summary { padding: 8px 12px; }
+      .status-main-zh { font-size: 16px; }
+      .status-main-en { font-size: 10px; }
+      .status-meta-item {
+        min-width: 148px;
+        padding: 6px 10px;
+      }
+      .status-meta-label { font-size: 10px; }
+      .status-meta-value { font-size: 14px; }
+      .content-grid {
+        grid-template-columns: minmax(0, 1.68fr) minmax(240px, 0.82fr);
+        gap: 10px;
+      }
+      .hero-card {
+        min-height: calc(100vh - 132px);
+        padding: 10px;
+        gap: 8px;
+      }
+      .hero-panel {
+        padding: 10px 14px 12px;
+        gap: 5px;
+      }
+      .hero-label-zh { font-size: 12px; }
+      .hero-label-en { font-size: 10px; }
+      .hero-source { font-size: clamp(24px, 3.5vw, 34px); line-height: 1.12; }
+      .hero-translation { font-size: clamp(28px, 4vw, 40px); line-height: 1.08; }
+      .history-card {
+        min-height: calc(100vh - 132px);
+        max-height: calc(100vh - 132px);
+        padding: 8px 10px;
+      }
+      .history-header { margin-bottom: 2px; }
+      .history-title-zh { font-size: 16px; }
+      .history-title-en,
+      .history-note { font-size: 9px; }
+      .history-item { padding: 5px 0; }
+      .history-source,
+      .history-translation { line-height: 1.18; }
+      .history-time { font-size: 9px; }
+      .history-item.level-0 .history-source { font-size: clamp(14px, 1.9vw, 18px); }
+      .history-item.level-0 .history-translation { font-size: clamp(15px, 2.05vw, 20px); }
+      .history-item.level-1 .history-source { font-size: clamp(13px, 1.75vw, 17px); }
+      .history-item.level-1 .history-translation { font-size: clamp(14px, 1.9vw, 18px); }
+      .history-item.level-2 .history-source { font-size: clamp(12px, 1.6vw, 15px); }
+      .history-item.level-2 .history-translation { font-size: clamp(13px, 1.7vw, 16px); }
+      .history-item.level-3 .history-source { font-size: clamp(11px, 1.45vw, 14px); }
+      .history-item.level-3 .history-translation { font-size: clamp(12px, 1.55vw, 15px); }
+      .history-item.level-4 .history-source,
+      .history-item.level-5 .history-source,
+      .history-item.level-6 .history-source,
+      .history-item.level-7 .history-source,
+      .history-item.level-8 .history-source,
+      .history-item.level-9 .history-source { font-size: clamp(10px, 1.3vw, 12px); }
+      .history-item.level-4 .history-translation,
+      .history-item.level-5 .history-translation,
+      .history-item.level-6 .history-translation,
+      .history-item.level-7 .history-translation,
+      .history-item.level-8 .history-translation,
+      .history-item.level-9 .history-translation { font-size: clamp(11px, 1.4vw, 13px); }
+      .fab {
+        min-width: 54px;
+        height: 44px;
+      }
     }
   </style>
 </head>
