@@ -29,6 +29,19 @@
     .pause-btn { background: #f59e0b; }
     .stop-btn { background: #ef4444; }
     .new-session-btn { background: #2563eb; color: white; border: none; border-radius: 16px; padding: 14px 18px; font-size: 16px; cursor: pointer; }
+    .login-trigger-btn { background: rgba(37, 99, 235, 0.12); color: rgba(255,255,255,0.22); border: 1px dashed rgba(148, 163, 184, 0.12); border-radius: 14px; padding: 12px 14px; font-size: 14px; cursor: pointer; min-width: 72px; }
+    .login-trigger-btn:hover { background: rgba(37, 99, 235, 0.16); }
+    .locked-btn { opacity: .38 !important; cursor: not-allowed !important; }
+    .auth-badge { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #3f1d1d; color: #fecaca; border: 1px solid #7f1d1d; }
+    .auth-badge.ok { background: #16351f; color: #bbf7d0; border-color: #166534; }
+    .auth-overlay { position: fixed; inset: 0; background: rgba(2, 6, 23, .72); display: none; align-items: center; justify-content: center; padding: 18px; z-index: 1000; }
+    .auth-overlay.open { display: flex; }
+    .auth-modal { width: min(420px, 100%); background: #111827; border: 1px solid #334155; border-radius: 22px; padding: 20px; box-shadow: 0 18px 48px rgba(0,0,0,.38); }
+    .auth-title { margin: 0 0 8px; font-size: 22px; }
+    .auth-desc { color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 14px; }
+    .auth-input { width: 100%; background: #0f172a; color: #fff; border: 1px solid #475569; border-radius: 14px; padding: 12px 14px; font-size: 16px; outline: none; }
+    .auth-error { min-height: 22px; margin-top: 10px; color: #fca5a5; font-size: 13px; }
+    .auth-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
 
     .lang-toggle-btn, .copy-btn, .confirm-btn, .cancel-btn {
       border: none; border-radius: 14px; padding: 10px 14px; cursor: pointer; font-size: 14px;
@@ -75,8 +88,9 @@
         <button id="startBtn" class="icon-btn play-btn" title="开始上课" aria-label="开始上课" disabled>▶</button>
         <button id="pauseBtn" class="icon-btn pause-btn" title="暂停" aria-label="暂停" disabled>⏸</button>
         <button id="stopBtn" class="icon-btn stop-btn" title="结束课程" aria-label="结束课程" disabled>⏹</button>
+        <button id="loginTriggerBtn" class="login-trigger-btn" title="教师登录" aria-label="教师登录">登录</button>
         <button id="newSessionBtn" class="new-session-btn">新课程</button>
-        
+        <span id="authBadge" class="auth-badge">未登录</span>
       </div>
       <div id="langSummary" class="lang-summary">默认兜底语种：English；学生在线语种将自动覆盖。</div>
       <div id="status" class="status">⚪ 未开始上课</div>
@@ -104,6 +118,20 @@
     <div class="card">
       <div class="small">历史记录（教师原语言）</div>
       <div id="history" class="history"></div>
+    </div>
+  </div>
+</div>
+
+
+<div id="authOverlay" class="auth-overlay" aria-hidden="true">
+  <div class="auth-modal">
+    <h2 class="auth-title">教师登录</h2>
+    <div class="auth-desc">请输入邀请码。验证通过后将立即返回主页面，并解除教师端操作限制。</div>
+    <input id="authInput" class="auth-input" type="password" inputmode="numeric" placeholder="请输入邀请码">
+    <div id="authError" class="auth-error"></div>
+    <div class="auth-actions">
+      <button id="authConfirmBtn" class="confirm-btn">确认</button>
+      <button id="authCancelBtn" class="cancel-btn">取消</button>
     </div>
   </div>
 </div>
@@ -152,6 +180,8 @@ const START_AI_URL = 'https://1311686407-jpi1vwtz9x.ap-guangzhou.tencentscf.com'
 const STOP_AI_URL = 'https://1311686407-0hao9da3yt.ap-guangzhou.tencentscf.com';
 const TRANSLATE_URL = 'https://1311686407-7ccgq1nhg9.ap-guangzhou.tencentscf.com';
 const SDKAPPID = 1600133369;
+const TEACHER_PASSWORDS_URL = 'https://raw.githubusercontent.com/steven2025/live-class-yan1/main/%E6%95%99%E5%B8%88%E7%99%BB%E5%BD%95%E5%AF%86%E7%A0%81.txt';
+const AUTH_STORAGE_KEY = 'teacher_invite_authed';
 const SUPPORTED_TRANSLATION_LANGS = LANGUAGE_OPTIONS.map(item => item.value);
 const AI_MESSAGE_TYPES = new Set([10000, 10020, 10001, 10030, 10003]);
 
@@ -167,6 +197,13 @@ const sessionInfoDiv = document.getElementById('sessionInfo');
 const currentSessionCodeSpan = document.getElementById('currentSessionCode');
 const studentLinkSpan = document.getElementById('studentLink');
 const copyStudentLinkBtn = document.getElementById('copyStudentLink');
+const loginTriggerBtn = document.getElementById('loginTriggerBtn');
+const authBadge = document.getElementById('authBadge');
+const authOverlay = document.getElementById('authOverlay');
+const authInput = document.getElementById('authInput');
+const authError = document.getElementById('authError');
+const authConfirmBtn = document.getElementById('authConfirmBtn');
+const authCancelBtn = document.getElementById('authCancelBtn');
 
 function safeStringify(value) {
   try { return JSON.stringify(value); } catch { return String(value); }
@@ -184,6 +221,82 @@ function getEffectiveTargetLanguages() {
   const active = getActiveStudentLanguages();
   return active.length ? active : ['en'];
 }
+
+let isTeacherAuthed = sessionStorage.getItem(AUTH_STORAGE_KEY) === '1';
+
+function setButtonLockState(button, locked) {
+  if (!button) return;
+  if (locked) {
+    button.classList.add('locked-btn');
+    button.dataset.locked = '1';
+  } else {
+    button.classList.remove('locked-btn');
+    delete button.dataset.locked;
+  }
+}
+function updateAuthUI() {
+  const locked = !isTeacherAuthed;
+  authBadge.textContent = locked ? '未登录' : '已登录';
+  authBadge.classList.toggle('ok', !locked);
+  setButtonLockState(startBtn, locked || !currentSession || isTeaching);
+  setButtonLockState(pauseBtn, locked || !isTeaching);
+  setButtonLockState(stopBtn, locked || !isTeaching);
+  setButtonLockState(newSessionBtn, locked);
+  startBtn.disabled = locked || !currentSession || isTeaching;
+  pauseBtn.disabled = locked || !isTeaching;
+  stopBtn.disabled = locked || !isTeaching;
+  newSessionBtn.disabled = locked;
+}
+function requireAuth(event) {
+  if (isTeacherAuthed) return false;
+  if (event) { event.preventDefault(); event.stopPropagation(); }
+  statusDiv.textContent = '请先登录教师端，再进行操作';
+  openAuthModal();
+  return true;
+}
+function openAuthModal() {
+  authOverlay.classList.add('open');
+  authOverlay.setAttribute('aria-hidden', 'false');
+  authError.textContent = '';
+  authInput.value = '';
+  setTimeout(() => authInput.focus(), 0);
+}
+function closeAuthModal() {
+  authOverlay.classList.remove('open');
+  authOverlay.setAttribute('aria-hidden', 'true');
+}
+async function fetchPasswordList() {
+  const response = await fetch(TEACHER_PASSWORDS_URL, { cache: 'no-store' });
+  if (!response.ok) throw new Error('无法读取邀请码文件');
+  const text = await response.text();
+  return text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+}
+async function verifyTeacherInvite() {
+  const input = String(authInput.value || '').trim();
+  if (!input) {
+    authError.textContent = '请输入邀请码';
+    return;
+  }
+  authError.textContent = '正在验证...';
+  authConfirmBtn.disabled = true;
+  try {
+    const passwords = await fetchPasswordList();
+    if (passwords.includes(input)) {
+      isTeacherAuthed = true;
+      sessionStorage.setItem(AUTH_STORAGE_KEY, '1');
+      closeAuthModal();
+      updateAuthUI();
+      statusDiv.textContent = '教师端登录成功';
+      return;
+    }
+    authError.textContent = '邀请码错误，请重新输入';
+  } catch (err) {
+    authError.textContent = '验证失败：' + (err?.message || err);
+  } finally {
+    authConfirmBtn.disabled = false;
+  }
+}
+
 function renderLanguageSummary() {
   const activeLabels = getActiveStudentLanguages().map(getLanguageLabel);
   langSummary.textContent = activeLabels.length
@@ -374,6 +487,7 @@ function maybeTranslateSubtitle(roundId, sourceText, isFinal) {
 }
 async function startClass() {
   if (isTeaching) return;
+  if (!isTeacherAuthed) { requireAuth(); return; }
   if (!currentSession) { alert('请先创建新课程'); return; }
   const roomId = parseInt(currentSession, 10);
   const userId = 'teacher_' + Date.now();
@@ -412,9 +526,11 @@ async function startClass() {
     if (trtc) await trtc.exitRoom().catch(() => {});
     trtc = null; isTeaching = false; isPaused = false; currentTaskId = null; teacherUserId = '';
     startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
+    updateAuthUI();
   }
 }
 function pauseClass() {
+  if (!isTeacherAuthed) { requireAuth(); return; }
   if (!isTeaching) return;
   isPaused = !isPaused;
   pauseBtn.textContent = isPaused ? '⏯' : '⏸';
@@ -423,6 +539,7 @@ function pauseClass() {
   statusDiv.textContent = isPaused ? '⏸ 已暂停：老师仍在房间中，但暂不广播新的翻译字幕' : '▶ 已继续：正在接收并广播字幕';
 }
 async function endClass() {
+  if (!isTeacherAuthed) { requireAuth(); return; }
   try {
     if (currentTaskId && currentTaskId !== 'TASK_EXISTS') await stopAITranscription(currentTaskId).catch(err => console.warn('停止AI转录失败', err));
     currentTaskId = null;
@@ -431,6 +548,7 @@ async function endClass() {
     isTeaching = false; isPaused = false; teacherUserId = '';
     subtitleRoundStore = new Map(); studentLanguageMap.clear(); roundTranslationState.clear(); renderLanguageSummary();
     startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
+    updateAuthUI();
     pauseBtn.textContent = '⏸'; pauseBtn.title = '暂停';
     statusDiv.textContent = '⏹ 课程已结束';
   }
@@ -468,6 +586,7 @@ function buildStudentUrl(sessionCode) {
   return url.toString();
 }
 async function createNewSession() {
+  if (!isTeacherAuthed) { requireAuth(); return; }
   const newRoomId = generateRoomId();
   if (isTeaching) await endClass();
   currentSession = newRoomId; localStorage.setItem('teacher_session', currentSession);
@@ -478,6 +597,7 @@ async function createNewSession() {
   subtitleRoundStore = new Map(); studentLanguageMap.clear(); roundTranslationState.clear(); renderLanguageSummary();
   sourceTextDiv.textContent = '等待语音输入...';
   startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
+  updateAuthUI();
   statusDiv.textContent = '新课程已创建，课程码：' + currentSession + '；等待学生加入后自动采集在线语种';
 }
 function generateQRCodeWithSession(sessionCode) {
@@ -492,14 +612,20 @@ function generateQRCodeWithSession(sessionCode) {
     qrContainer.innerHTML = ''; qrContainer.appendChild(canvas); qrDesc.textContent = '手机扫码即可观看字幕';
   } catch (err) { console.error('二维码生成失败', err); qrDesc.textContent = '二维码生成失败，请使用下方链接'; }
 }
-startBtn.addEventListener('click', startClass);
-pauseBtn.addEventListener('click', pauseClass);
-stopBtn.addEventListener('click', endClass);
-newSessionBtn.addEventListener('click', createNewSession);
+startBtn.addEventListener('click', event => { if (requireAuth(event)) return; startClass(); });
+pauseBtn.addEventListener('click', event => { if (requireAuth(event)) return; pauseClass(); });
+stopBtn.addEventListener('click', event => { if (requireAuth(event)) return; endClass(); });
+newSessionBtn.addEventListener('click', event => { if (requireAuth(event)) return; createNewSession(); });
+loginTriggerBtn.addEventListener('click', openAuthModal);
+authCancelBtn.addEventListener('click', closeAuthModal);
+authOverlay.addEventListener('click', event => { if (event.target === authOverlay) closeAuthModal(); });
+authConfirmBtn.addEventListener('click', verifyTeacherInvite);
+authInput.addEventListener('keydown', event => { if (event.key === 'Enter') verifyTeacherInvite(); });
 copyStudentLinkBtn.addEventListener('click', () => { const link = studentLinkSpan.textContent; if (!link) return; navigator.clipboard.writeText(link).then(() => alert('链接已复制')).catch(() => alert('复制失败')); });
 renderLanguageSummary();
 renderHistory();
-if (currentSession) { sessionInfoDiv.style.display = 'block'; currentSessionCodeSpan.textContent = currentSession; const defaultLink = buildStudentUrl(currentSession); studentLinkSpan.textContent = defaultLink; generateQRCodeWithSession(currentSession); startBtn.disabled = false; }
+updateAuthUI();
+if (currentSession) { sessionInfoDiv.style.display = 'block'; currentSessionCodeSpan.textContent = currentSession; const defaultLink = buildStudentUrl(currentSession); studentLinkSpan.textContent = defaultLink; generateQRCodeWithSession(currentSession); startBtn.disabled = false; updateAuthUI(); }
 else { generateQRCodeWithSession(''); }
 if (window.location.protocol === 'file:') statusDiv.textContent = '请不要直接双击 HTML。请用 HTTP 服务访问，例如 http://127.0.0.1:5500/teacher.html';
 
