@@ -196,7 +196,7 @@
         <button id="newSessionBtn" class="new-session-btn">新课程</button>
         <span id="authBadge" class="auth-badge">未登录</span>
       </div>
-      <div id="langSummary" class="lang-summary">默认兜底语种：English；学生在线语种将自动覆盖。</div>
+      <div id="langSummary" class="lang-summary">English。</div>
       <div id="status" class="status">⚪ 未开始上课</div>
 
       <div id="sessionInfo" class="session-info" style="display:none;">
@@ -284,7 +284,7 @@ const START_AI_URL = 'https://1311686407-jpi1vwtz9x.ap-guangzhou.tencentscf.com'
 const STOP_AI_URL = 'https://1311686407-0hao9da3yt.ap-guangzhou.tencentscf.com';
 const TRANSLATE_URL = 'https://1311686407-7ccgq1nhg9.ap-guangzhou.tencentscf.com';
 const SDKAPPID = 1600133369;
-const TEACHER_PASSWORDS_URL = 'https://raw.githubusercontent.com/steven2025/live-class-yan1/main/%E6%95%99%E5%B8%88%E7%99%BB%E5%BD%95%E5%AF%86%E7%A0%81.txt';
+const TEACHER_PASSWORDS_URL = 'https://live-class-yan1-1311686407.cos.ap-guangzhou.myqcloud.com/%E6%95%99%E5%B8%88%E7%99%BB%E5%BD%95%E5%AF%86%E7%A0%81.txt';
 const AUTH_STORAGE_KEY = 'teacher_invite_authed';
 const SUPPORTED_TRANSLATION_LANGS = LANGUAGE_OPTIONS.map(item => item.value);
 const AI_MESSAGE_TYPES = new Set([10000, 10020, 10001, 10030, 10003]);
@@ -406,8 +406,7 @@ async function verifyTeacherInvite() {
 function renderLanguageSummary() {
   const activeLabels = getActiveStudentLanguages().map(getLanguageLabel);
   langSummary.textContent = activeLabels.length
-    ? '当前在线学生语种：' + activeLabels.join('、') + '；默认兜底语种：English'
-    : '默认兜底语种：English；学生在线语种将自动覆盖。';
+    ? '当前在线学生语种：' + activeLabels.join('、') + '；
 }
 function estimateAddedChars(currentText, lastText) {
   if (!lastText) return currentText.length;
@@ -765,7 +764,7 @@ function generateQRCodeWithSession(sessionCode) {
   const qrDesc = document.getElementById('qrDesc'); const qrContainer = document.getElementById('qrcode'); const studentUrlTextDiv = document.getElementById('studentUrlText'); const copyBtn = document.getElementById('copyUrlBtn');
   studentUrlTextDiv.textContent = studentUrl; studentUrlTextDiv.style.display = 'block'; copyBtn.style.display = 'inline-block';
   copyBtn.onclick = function() { navigator.clipboard.writeText(studentUrl).then(() => alert('链接已复制')).catch(() => alert('复制失败，请手动复制')); };
-  if (typeof qrcode === 'undefined') { qrDesc.textContent = '二维码库加载受浏览器策略影响，但不影响翻译；请直接复制下方链接给学生。'; return; }
+  if (typeof qrcode === 'undefined') { qrDesc.textContent = '请直接复制下方链接给学生。'; return; }
   try {
     const qr = qrcode(0, 'M'); qr.addData(studentUrl); qr.make(); const cellSize = 4; const margin = 2; const size = qr.getModuleCount() * cellSize + margin * 2; const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,size,size); ctx.fillStyle = '#000000';
     for (let row = 0; row < qr.getModuleCount(); row++) for (let col = 0; col < qr.getModuleCount(); col++) if (qr.isDark(row,col)) ctx.fillRect(margin + col*cellSize, margin + row*cellSize, cellSize, cellSize);
@@ -787,7 +786,7 @@ renderHistory();
 updateAuthUI();
 if (currentSession) { sessionInfoDiv.style.display = 'block'; currentSessionCodeSpan.textContent = currentSession; const defaultLink = buildStudentUrl(currentSession); studentLinkSpan.textContent = defaultLink; generateQRCodeWithSession(currentSession); startBtn.disabled = false; updateAuthUI(); }
 else { generateQRCodeWithSession(''); }
-if (window.location.protocol === 'file:') statusDiv.textContent = '请不要直接双击 HTML。请用 HTTP 服务访问，例如 http://127.0.0.1:5500/teacher.html';
+if (window.location.protocol === 'file:') statusDiv.textContent = '测试版';
 
 </script>
 </body>
