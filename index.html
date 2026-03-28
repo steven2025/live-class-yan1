@@ -2,246 +2,278 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
   <title>课堂字幕 - 学生端 (TRTC)</title>
   <script src="https://web.sdk.qcloud.com/trtc/webrtc/v5/dist/trtc.js"></script>
   <style>
     :root {
-      --bg: #0f172a;
-      --panel: #111827;
-      --panel-soft: #172033;
-      --panel-strong: #1e293b;
-      --line: #334155;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --accent: #f59e0b;
-      --accent-soft: rgba(245, 158, 11, 0.15);
-      --success: #22c55e;
-      --danger: #ef4444;
-      --shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
-      --radius-lg: 22px;
-      --radius-md: 16px;
-      --radius-sm: 12px;
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --bg: #081224;
+      --bg-soft: #0f1d35;
+      --panel: rgba(9, 20, 40, 0.94);
+      --panel-soft: rgba(16, 31, 56, 0.98);
+      --line: rgba(80, 108, 154, 0.55);
+      --text: #f4f7fb;
+      --muted: #98a8c7;
+      --muted-2: #7785a1;
+      --accent: #f0dc82;
+      --accent-strong: #b96a14;
+      --success: #b7f0c9;
+      --danger: #fecaca;
+      --shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
+      --r-lg: 30px;
+      --r-md: 22px;
+      --r-sm: 16px;
       --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; }
     body {
       margin: 0;
-      background: radial-gradient(circle at top, #16213a 0%, var(--bg) 42%);
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #102241 0%, var(--bg) 38%, #06101f 100%);
       user-select: none;
     }
 
     .page {
       min-height: 100vh;
-      padding: calc(14px + var(--safe-top)) 14px calc(94px + var(--safe-bottom));
+      padding: calc(12px + var(--safe-top)) 12px calc(84px + var(--safe-bottom));
     }
 
     .wrap {
-      max-width: 980px;
+      max-width: 1160px;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
 
-    .session-card,
-    .status-card,
-    .subtitle-card,
-    .history-card {
-      background: rgba(17, 24, 39, 0.95);
+    .shell,
+    .login-card,
+    .status-summary,
+    .hero-card,
+    .history-card,
+    .sheet-panel,
+    .review-panel {
+      background: linear-gradient(180deg, rgba(12, 25, 48, 0.96), rgba(7, 18, 35, 0.98));
       border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
+      border-radius: var(--r-lg);
       box-shadow: var(--shadow);
     }
 
-    .session-card {
-      padding: 22px 18px;
+    .hidden { display: none !important; }
+
+    .login-card {
+      padding: 24px 18px;
       text-align: center;
     }
 
-    .session-title {
-      font-size: 20px;
-      font-weight: 800;
+    .login-title {
+      font-size: 22px;
+      font-weight: 900;
       margin-bottom: 8px;
     }
 
-    .session-subtitle {
+    .login-subtitle {
       color: var(--muted);
       font-size: 14px;
-      line-height: 1.5;
+      line-height: 1.55;
       margin-bottom: 16px;
     }
 
-    .session-input-row {
+    .login-row {
       display: flex;
       flex-direction: column;
-      gap: 12px;
       align-items: center;
+      gap: 12px;
     }
 
-    .room-code-input {
-      width: min(100%, 280px);
-      border: 1px solid #475569;
+    .room-input {
+      width: min(100%, 290px);
       border-radius: 999px;
-      background: #0b1220;
+      border: 1px solid rgba(111, 136, 177, 0.7);
+      background: rgba(4, 12, 24, 0.95);
       color: #fff;
+      outline: none;
       padding: 14px 18px;
       text-align: center;
       font-size: 18px;
-      letter-spacing: 1px;
-      outline: none;
+      letter-spacing: 0.06em;
     }
 
     .btn {
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid rgba(94, 117, 154, 0.8);
+      border-radius: 18px;
+      background: rgba(29, 42, 70, 0.95);
+      color: #fff;
+      padding: 8px 12px;
       display: inline-flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 2px;
-      min-height: 52px;
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: var(--panel-strong);
-      color: #fff;
-      padding: 9px 12px;
       cursor: pointer;
+      transition: transform .14s ease, opacity .14s ease, background .14s ease, border-color .14s ease;
       text-align: center;
-      transition: transform .15s ease, border-color .15s ease, background .15s ease, opacity .15s ease;
     }
-
-    .btn:active { transform: scale(0.985); }
+    .btn:active { transform: scale(.985); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
     .btn-primary { background: #2563eb; border-color: #2563eb; }
-    .btn-accent { background: #b45309; border-color: #b45309; }
-    .btn-ghost { background: #111827; }
+    .btn-accent { background: #b66a14; border-color: #b66a14; }
     .btn-success { background: #166534; border-color: #166534; }
-    .btn-danger { background: #991b1b; border-color: #991b1b; }
-    .btn-soft { background: #1d2638; }
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-soft { background: rgba(29, 42, 70, 0.95); }
+    .btn-ghost { background: rgba(10, 20, 36, 0.96); }
+    .btn-danger { background: #8a2130; border-color: #8a2130; }
 
     .btn-zh,
     .btn-en {
       display: block;
       width: 100%;
       overflow: hidden;
-      white-space: nowrap;
       text-overflow: ellipsis;
-      line-height: 1.15;
-      text-align: center;
+      white-space: nowrap;
+      line-height: 1.14;
       word-break: keep-all;
       overflow-wrap: normal;
+      text-align: center;
     }
-
-    .btn-zh {
-      font-size: clamp(14px, 2.6vw, 16px);
-      font-weight: 800;
-      letter-spacing: 0.01em;
-    }
-
-    .btn-en {
-      font-size: clamp(10px, 2vw, 12px);
-      font-weight: 650;
-      opacity: 0.88;
-      letter-spacing: 0.02em;
-    }
+    .btn-zh { font-size: clamp(13px, 2.6vw, 16px); font-weight: 860; letter-spacing: .01em; }
+    .btn-en { font-size: clamp(10px, 1.9vw, 12px); font-weight: 700; opacity: .9; letter-spacing: .02em; }
 
     .main-content { display: none; }
 
-    .status-card {
-      padding: 14px;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .status-pill {
-      background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(17, 24, 39, 0.98));
-      border: 1px solid rgba(71, 85, 105, 0.9);
-      border-radius: 16px;
-      padding: 10px 12px;
-      min-height: 72px;
+    .status-summary {
+      padding: 14px 16px;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      gap: 4px;
+      gap: 8px;
     }
 
-    .status-label {
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
+    .status-top {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .status-main-zh {
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--success);
+      line-height: 1.12;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .status-value {
-      font-size: clamp(13px, 2.9vw, 16px);
-      font-weight: 800;
-      color: #fff;
-      line-height: 1.25;
-      word-break: break-word;
+    .status-main-en {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .status-connection.connected { color: #bbf7d0; }
-    .status-connection.error { color: #fecaca; }
-    .status-connection.pending { color: #fde68a; }
+    .status-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 12px;
+    }
 
-    .landscape-grid {
+    .status-meta-item {
+      min-width: 0;
+      background: rgba(15, 30, 54, 0.9);
+      border: 1px solid rgba(72, 94, 127, 0.75);
+      border-radius: 18px;
+      padding: 10px 12px;
+    }
+
+    .status-meta-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-meta-value {
+      font-size: clamp(16px, 3.6vw, 22px);
+      font-weight: 860;
+      line-height: 1.18;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-main.pending { color: #fde68a; }
+    .status-main.error { color: var(--danger); }
+    .status-main.connected { color: var(--success); }
+
+    .content-grid {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 14px;
+      gap: 12px;
     }
 
-    .subtitle-card {
-      padding: 18px;
+    .hero-card {
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      min-height: 40vh;
-      gap: 14px;
+      gap: 12px;
+      min-height: 42vh;
     }
 
-    .subtitle-section {
-      background: linear-gradient(180deg, rgba(17, 24, 39, 0.78), rgba(23, 32, 51, 0.9));
-      border: 1px solid rgba(51, 65, 85, 0.95);
-      border-radius: 18px;
-      padding: 14px;
+    .hero-panel {
       flex: 1;
+      min-height: 0;
+      border-radius: 24px;
+      border: 1px solid rgba(73, 100, 141, 0.62);
+      background: linear-gradient(180deg, rgba(6, 18, 37, 0.96), rgba(10, 24, 49, 0.98));
+      padding: 16px 16px 18px;
       display: flex;
       flex-direction: column;
       justify-content: center;
+      gap: 8px;
     }
 
-    .section-label {
-      font-size: 13px;
+    .hero-label-zh {
+      font-size: clamp(13px, 2.5vw, 16px);
       color: var(--muted);
-      margin-bottom: 8px;
+      font-weight: 780;
+      line-height: 1.16;
+    }
+
+    .hero-label-en {
+      font-size: clamp(10px, 1.8vw, 12px);
+      color: var(--muted-2);
       font-weight: 700;
-      letter-spacing: 0.01em;
+      line-height: 1.14;
+      margin-top: -2px;
     }
 
-    .source {
-      font-size: clamp(29px, 5.2vw, 42px);
-      font-weight: 800;
-      line-height: 1.3;
-      color: #eff6ff;
-      word-break: break-word;
-      min-height: 78px;
-    }
-
-    .native {
-      font-size: clamp(34px, 6vw, 50px);
+    .hero-source {
+      font-size: clamp(34px, 8vw, 58px);
       font-weight: 900;
-      line-height: 1.28;
-      color: #fde68a;
+      line-height: 1.18;
+      color: #f8fbff;
+      letter-spacing: -.02em;
       word-break: break-word;
-      min-height: 92px;
+    }
+
+    .hero-translation {
+      font-size: clamp(38px, 9vw, 66px);
+      font-weight: 900;
+      line-height: 1.14;
+      color: var(--accent);
+      letter-spacing: -.02em;
+      word-break: break-word;
     }
 
     .history-card {
@@ -249,26 +281,36 @@
       display: flex;
       flex-direction: column;
       min-height: 240px;
-      max-height: 42vh;
+      max-height: 34vh;
     }
 
     .history-header {
       display: flex;
-      align-items: center;
+      align-items: end;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 10px;
+      gap: 10px;
+      margin-bottom: 8px;
     }
 
-    .history-title {
-      font-size: 16px;
-      font-weight: 800;
+    .history-title-wrap { min-width: 0; }
+    .history-title-zh {
+      font-size: clamp(19px, 4vw, 24px);
+      font-weight: 900;
+      line-height: 1.1;
     }
-
-    .history-note {
-      font-size: 12px;
+    .history-title-en {
       color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-top: 2px;
+    }
+    .history-note {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
       white-space: nowrap;
+      flex: 0 0 auto;
     }
 
     .history-list {
@@ -277,88 +319,98 @@
       display: flex;
       flex-direction: column;
     }
-
     .history-list::-webkit-scrollbar,
     .sheet-body::-webkit-scrollbar,
-    .review-modal-body::-webkit-scrollbar { width: 8px; }
+    .review-body::-webkit-scrollbar { width: 8px; }
     .history-list::-webkit-scrollbar-thumb,
     .sheet-body::-webkit-scrollbar-thumb,
-    .review-modal-body::-webkit-scrollbar-thumb {
+    .review-body::-webkit-scrollbar-thumb {
       background: rgba(148, 163, 184, 0.35);
       border-radius: 999px;
     }
 
     .history-empty {
-      color: var(--muted);
-      font-size: 14px;
-      padding: 18px 0;
       text-align: center;
+      color: var(--muted);
+      padding: 18px 0;
+      font-size: 15px;
     }
 
     .history-item {
-      border-top: 1px solid rgba(51, 65, 85, 0.7);
-      padding: 12px 0;
+      border-top: 1px solid rgba(62, 85, 117, 0.55);
+      padding: 10px 0;
     }
     .history-item:first-child { border-top: none; padding-top: 4px; }
-
     .history-source,
     .history-translation {
-      line-height: 1.36;
       word-break: break-word;
+      line-height: 1.3;
     }
+    .history-source { color: #eef5ff; font-weight: 820; }
+    .history-translation { color: #f0dd8f; font-weight: 780; margin-top: 4px; }
+    .history-time { margin-top: 4px; font-size: 11px; color: var(--muted); }
 
-    .history-source { color: #e5eefb; font-weight: 760; }
-    .history-translation { color: #f5df8d; margin-top: 5px; font-weight: 700; }
-    .history-time { margin-top: 5px; color: var(--muted); font-size: 12px; }
-
-    .history-item.level-0 .history-source { font-size: clamp(20px, 3.7vw, 26px); }
-    .history-item.level-0 .history-translation { font-size: clamp(21px, 3.9vw, 28px); }
-    .history-item.level-1 .history-source { font-size: clamp(18px, 3.4vw, 23px); }
-    .history-item.level-1 .history-translation { font-size: clamp(19px, 3.6vw, 25px); }
-    .history-item.level-2 .history-source { font-size: clamp(17px, 3.1vw, 21px); }
-    .history-item.level-2 .history-translation { font-size: clamp(18px, 3.3vw, 23px); }
-    .history-item.level-3 .history-source { font-size: clamp(16px, 2.8vw, 19px); }
-    .history-item.level-3 .history-translation { font-size: clamp(17px, 3vw, 21px); }
+    .history-item.level-0 .history-source { font-size: clamp(22px, 4.6vw, 30px); }
+    .history-item.level-0 .history-translation { font-size: clamp(24px, 4.9vw, 32px); }
+    .history-item.level-1 .history-source { font-size: clamp(20px, 4.1vw, 27px); }
+    .history-item.level-1 .history-translation { font-size: clamp(22px, 4.4vw, 29px); }
+    .history-item.level-2 .history-source { font-size: clamp(18px, 3.8vw, 24px); }
+    .history-item.level-2 .history-translation { font-size: clamp(20px, 4.0vw, 26px); }
+    .history-item.level-3 .history-source { font-size: clamp(17px, 3.5vw, 22px); }
+    .history-item.level-3 .history-translation { font-size: clamp(18px, 3.7vw, 23px); }
     .history-item.level-4 .history-source,
     .history-item.level-5 .history-source,
     .history-item.level-6 .history-source,
     .history-item.level-7 .history-source,
     .history-item.level-8 .history-source,
-    .history-item.level-9 .history-source { font-size: clamp(15px, 2.6vw, 18px); }
+    .history-item.level-9 .history-source { font-size: clamp(16px, 3.2vw, 20px); }
     .history-item.level-4 .history-translation,
     .history-item.level-5 .history-translation,
     .history-item.level-6 .history-translation,
     .history-item.level-7 .history-translation,
     .history-item.level-8 .history-translation,
-    .history-item.level-9 .history-translation { font-size: clamp(16px, 2.8vw, 19px); }
+    .history-item.level-9 .history-translation { font-size: clamp(17px, 3.4vw, 21px); }
 
     .fab {
       position: fixed;
-      right: 14px;
-      bottom: calc(14px + var(--safe-bottom));
+      right: 10px;
+      bottom: calc(12px + var(--safe-bottom));
       z-index: 120;
-      width: 60px;
-      height: 60px;
-      border: none;
+      min-width: 64px;
+      height: 54px;
+      padding: 6px 12px 7px;
       border-radius: 999px;
-      background: linear-gradient(180deg, #1e293b, #0f172a);
+      border: 1px solid rgba(77, 101, 140, 0.75);
+      background: linear-gradient(180deg, rgba(32, 48, 80, 0.95), rgba(10, 20, 38, 0.98));
+      box-shadow: 0 16px 38px rgba(0,0,0,.34);
       color: #fff;
-      box-shadow: 0 16px 36px rgba(0,0,0,.35);
-      font-size: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
       cursor: pointer;
     }
+    .fab-zh,
+    .fab-en {
+      line-height: 1.08;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .fab-zh { font-size: 13px; font-weight: 900; }
+    .fab-en { font-size: 10px; font-weight: 700; opacity: .9; }
 
-    .backdrop {
+    .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(2, 6, 23, 0.62);
+      background: rgba(3, 8, 20, 0.64);
       opacity: 0;
       pointer-events: none;
       transition: opacity .2s ease;
       z-index: 130;
     }
-
-    .backdrop.open { opacity: 1; pointer-events: auto; }
+    .overlay.open { opacity: 1; pointer-events: auto; }
 
     .settings-sheet {
       position: fixed;
@@ -366,68 +418,89 @@
       right: 0;
       bottom: 0;
       z-index: 140;
-      background: rgba(8, 15, 29, 0.98);
-      border-top-left-radius: 24px;
-      border-top-right-radius: 24px;
-      border: 1px solid rgba(51, 65, 85, 0.95);
+      max-height: min(72vh, 760px);
+      background: rgba(7, 16, 31, 0.99);
+      border: 1px solid rgba(71, 90, 122, 0.95);
+      border-top-left-radius: 28px;
+      border-top-right-radius: 28px;
       transform: translateY(102%);
       transition: transform .22s ease;
-      box-shadow: 0 -16px 48px rgba(0,0,0,.36);
-      max-height: min(78vh, 760px);
+      box-shadow: 0 -18px 50px rgba(0,0,0,.38);
       display: flex;
       flex-direction: column;
     }
-
     .settings-sheet.open { transform: translateY(0); }
 
     .sheet-handle {
-      width: 60px;
+      width: 62px;
       height: 5px;
       border-radius: 999px;
-      background: rgba(148, 163, 184, 0.55);
-      margin: 10px auto 2px;
+      background: rgba(148, 163, 184, 0.45);
+      margin: 10px auto 4px;
       flex: 0 0 auto;
     }
 
-    .sheet-header {
+    .sheet-header,
+    .review-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
       padding: 12px 14px 10px;
-      border-bottom: 1px solid rgba(51, 65, 85, 0.7);
+      border-bottom: 1px solid rgba(62, 85, 117, 0.5);
     }
 
-    .sheet-title {
-      font-size: 17px;
-      font-weight: 850;
+    .sheet-title-wrap,
+    .review-title-wrap { min-width: 0; }
+
+    .sheet-title-zh,
+    .review-title-zh {
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1.12;
+    }
+    .sheet-title-en,
+    .review-title-en {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 700;
+      margin-top: 2px;
     }
 
-    .sheet-body {
+    .sheet-body,
+    .review-body {
       overflow-y: auto;
-      padding: 12px 14px calc(20px + var(--safe-bottom));
+      padding: 12px 14px calc(18px + var(--safe-bottom));
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
     }
 
-    .sheet-section {
-      border: 1px solid rgba(51, 65, 85, 0.9);
-      border-radius: 18px;
-      background: rgba(17, 24, 39, 0.92);
+    .sheet-section,
+    .review-section {
+      border: 1px solid rgba(62, 85, 117, 0.62);
+      border-radius: 20px;
+      background: rgba(12, 24, 43, 0.94);
       padding: 13px;
     }
 
-    .sheet-section-title {
+    .section-title-zh {
       font-size: 15px;
-      font-weight: 800;
-      margin-bottom: 4px;
+      font-weight: 860;
+      line-height: 1.15;
     }
-
-    .sheet-section-tip {
+    .section-title-en {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 700;
+      margin-top: 2px;
+      line-height: 1.15;
+    }
+    .section-tip {
       color: var(--muted);
       font-size: 12px;
       line-height: 1.45;
+      margin-top: 8px;
       margin-bottom: 10px;
     }
 
@@ -438,34 +511,36 @@
     }
 
     .lang-option {
-      border: 1px solid rgba(71, 85, 105, 0.95);
-      background: #111827;
-      color: #fff;
-      border-radius: 14px;
-      padding: 12px 10px;
-      font-size: clamp(13px, 2.8vw, 15px);
-      font-weight: 760;
+      border: 1px solid rgba(88, 110, 145, 0.82);
+      border-radius: 15px;
+      background: rgba(10, 20, 36, 0.98);
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 8px;
+      font-size: clamp(12px, 2.8vw, 15px);
+      font-weight: 780;
       text-align: center;
+      color: #fff;
       cursor: pointer;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      word-break: keep-all;
     }
-
     .lang-option.selected {
-      border-color: #f59e0b;
-      background: linear-gradient(180deg, rgba(180, 83, 9, 0.9), rgba(146, 64, 14, 0.98));
-      box-shadow: inset 0 0 0 1px rgba(253, 224, 71, 0.18);
+      border-color: #f0dc82;
+      background: linear-gradient(180deg, rgba(182, 106, 20, 0.92), rgba(127, 71, 16, 0.98));
+      box-shadow: inset 0 0 0 1px rgba(255, 239, 185, 0.18);
     }
 
-    .sheet-button-grid {
+    .button-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
     }
-
-    .sheet-button-grid.single { grid-template-columns: 1fr; }
+    .button-grid.single { grid-template-columns: 1fr; }
+    .button-grid.triple { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
     .review-modal {
       position: fixed;
@@ -476,133 +551,158 @@
       justify-content: center;
       padding: 12px;
     }
-
     .review-modal.open { display: flex; }
 
-    .review-modal-panel {
-      width: min(960px, 100%);
-      max-height: min(88vh, 880px);
-      background: rgba(8, 15, 29, 0.98);
-      border: 1px solid rgba(51, 65, 85, 0.96);
-      border-radius: 24px;
-      box-shadow: 0 26px 60px rgba(0,0,0,.42);
+    .review-panel {
+      width: min(980px, 100%);
+      max-height: min(88vh, 860px);
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      background: rgba(7, 16, 31, 0.99);
     }
 
-    .review-modal-header {
-      padding: 14px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      border-bottom: 1px solid rgba(51, 65, 85, 0.7);
-    }
-
-    .review-modal-title {
-      font-size: 18px;
-      font-weight: 900;
-    }
-
-    .review-modal-body {
-      padding: 14px 16px 18px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .review-buttons {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .review-actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .review-mode.active {
-      background: #2563eb;
-      border-color: #2563eb;
-    }
-
-    .preview-area {
-      background: #0f172a;
-      border: 1px solid rgba(51, 65, 85, 0.95);
-      border-radius: 16px;
-      padding: 16px;
+    .review-preview {
+      border-radius: 18px;
+      border: 1px solid rgba(62, 85, 117, 0.62);
+      background: rgba(9, 18, 34, 0.98);
+      padding: 14px;
       white-space: pre-wrap;
-      line-height: 1.58;
-      font-size: 14px;
+      line-height: 1.56;
       min-height: 220px;
-      color: #e5eefb;
+      font-size: 14px;
+      color: #eef4fe;
     }
 
-    .preview-title {
-      font-size: 13px;
+    .preview-label {
       color: var(--muted);
-      margin-bottom: 10px;
+      font-size: 12px;
       font-weight: 700;
+      margin-bottom: 8px;
     }
 
-    .hidden-audio { position: fixed; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    .hidden-audio {
+      position: fixed;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      pointer-events: none;
+    }
 
     @media (max-width: 560px) {
-      .status-card { grid-template-columns: 1fr; }
-      .lang-grid,
-      .sheet-button-grid,
-      .review-buttons,
-      .review-actions { grid-template-columns: 1fr; }
-      .source { font-size: clamp(26px, 7vw, 34px); }
-      .native { font-size: clamp(30px, 8vw, 39px); }
-      .history-card { max-height: 40vh; }
+      .button-grid,
+      .button-grid.triple { grid-template-columns: 1fr; }
+      .status-meta { grid-template-columns: 1fr 1fr; }
+      .history-card { max-height: 32vh; }
     }
 
-    @media (orientation: landscape) and (max-height: 640px) {
-      .page { padding: calc(10px + var(--safe-top)) 10px calc(82px + var(--safe-bottom)); }
-      .wrap { gap: 10px; }
-      .status-card {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        padding: 10px;
+    @media (orientation: landscape) and (max-height: 700px) {
+      .page {
+        padding: calc(8px + var(--safe-top)) 10px calc(70px + var(--safe-bottom));
       }
-      .status-pill { min-height: 62px; padding: 8px 10px; }
-      .landscape-grid {
-        grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+      .wrap { gap: 10px; }
+      .status-summary {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 14px;
+      }
+      .status-top {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .status-main-zh {
+        font-size: 18px;
+      }
+      .status-main-en {
+        font-size: 11px;
+      }
+      .status-meta {
+        flex: 0 0 auto;
+        display: flex;
+        gap: 8px;
+      }
+      .status-meta-item {
+        min-width: 186px;
+        padding: 8px 12px;
+      }
+      .status-meta-label { font-size: 11px; }
+      .status-meta-value { font-size: 15px; }
+      .content-grid {
+        grid-template-columns: minmax(0, 1.78fr) minmax(300px, 1fr);
         align-items: stretch;
       }
-      .subtitle-card { min-height: calc(100vh - 210px); }
-      .history-card { min-height: calc(100vh - 210px); max-height: calc(100vh - 210px); }
+      .hero-card {
+        min-height: calc(100vh - 158px);
+        padding: 14px;
+        gap: 10px;
+      }
+      .hero-panel {
+        padding: 14px 16px;
+      }
+      .hero-source { font-size: clamp(30px, 4.6vw, 52px); }
+      .hero-translation { font-size: clamp(34px, 5.1vw, 58px); }
+      .history-card {
+        min-height: calc(100vh - 158px);
+        max-height: calc(100vh - 158px);
+        padding: 12px 14px;
+      }
+      .history-item { padding: 8px 0; }
+      .history-item.level-0 .history-source { font-size: clamp(18px, 2.5vw, 24px); }
+      .history-item.level-0 .history-translation { font-size: clamp(19px, 2.7vw, 26px); }
+      .history-item.level-1 .history-source { font-size: clamp(17px, 2.3vw, 22px); }
+      .history-item.level-1 .history-translation { font-size: clamp(18px, 2.4vw, 24px); }
+      .history-item.level-2 .history-source { font-size: clamp(16px, 2.1vw, 20px); }
+      .history-item.level-2 .history-translation { font-size: clamp(17px, 2.2vw, 22px); }
+      .history-item.level-3 .history-source { font-size: clamp(15px, 2vw, 18px); }
+      .history-item.level-3 .history-translation { font-size: clamp(16px, 2.1vw, 20px); }
+      .history-item.level-4 .history-source,
+      .history-item.level-5 .history-source,
+      .history-item.level-6 .history-source,
+      .history-item.level-7 .history-source,
+      .history-item.level-8 .history-source,
+      .history-item.level-9 .history-source { font-size: clamp(14px, 1.8vw, 17px); }
+      .history-item.level-4 .history-translation,
+      .history-item.level-5 .history-translation,
+      .history-item.level-6 .history-translation,
+      .history-item.level-7 .history-translation,
+      .history-item.level-8 .history-translation,
+      .history-item.level-9 .history-translation { font-size: clamp(15px, 1.9vw, 18px); }
+      .fab {
+        right: 12px;
+        min-width: 58px;
+        height: 48px;
+        padding: 5px 10px 6px;
+      }
       .settings-sheet {
-        left: auto;
-        width: min(420px, 48vw);
-        max-height: 100vh;
         top: 0;
         bottom: 0;
+        left: auto;
         right: 0;
-        border-top-left-radius: 24px;
+        width: min(42vw, 420px);
+        max-height: 100vh;
         border-top-right-radius: 0;
-        border-bottom-left-radius: 24px;
+        border-bottom-left-radius: 28px;
         border-bottom-right-radius: 0;
         transform: translateX(102%);
       }
       .settings-sheet.open { transform: translateX(0); }
       .sheet-handle { display: none; }
+      .sheet-body { padding-bottom: 18px; }
     }
   </style>
 </head>
 <body>
 <div id="page" class="page">
   <div class="wrap">
-    <div id="sessionInputArea" class="session-card">
-      <div class="session-title">学生字幕端</div>
-      <div class="session-subtitle">请输入教师提供的课程码，即可进入课堂观看双语字幕。</div>
-      <div class="session-input-row">
-        <input type="text" id="roomCodeInput" class="room-code-input" placeholder="例如：12345" maxlength="6" inputmode="numeric">
-        <button id="confirmSessionBtn" class="btn btn-primary" style="max-width:280px;">
+    <div id="sessionInputArea" class="login-card">
+      <div class="login-title">学生字幕端</div>
+      <div class="login-subtitle">请输入教师提供的课程码，即可进入课堂观看双语字幕。</div>
+      <div class="login-row">
+        <input id="roomCodeInput" class="room-input" type="text" maxlength="6" inputmode="numeric" placeholder="例如：12345">
+        <button id="confirmSessionBtn" class="btn btn-primary" style="max-width:290px;">
           <span class="btn-zh">进入课堂</span>
           <span class="btn-en">Join Class</span>
         </button>
@@ -610,37 +710,44 @@
     </div>
 
     <div id="mainContent" class="main-content">
-      <div class="status-card">
-        <div class="status-pill">
-          <div class="status-label">连接状态 Connection</div>
-          <div id="statusConnection" class="status-value status-connection pending">连接中</div>
+      <div class="status-summary">
+        <div class="status-top">
+          <div id="statusMainZh" class="status-main-zh status-main pending">正在连接课堂</div>
+          <div id="statusMainEn" class="status-main-en">Connecting</div>
         </div>
-        <div class="status-pill">
-          <div class="status-label">当前语种 Language</div>
-          <div id="statusLanguage" class="status-value">English</div>
-        </div>
-        <div class="status-pill">
-          <div class="status-label">教师音频 Audio</div>
-          <div id="statusAudio" class="status-value">关闭 Off</div>
+        <div class="status-meta">
+          <div class="status-meta-item">
+            <div class="status-meta-label">当前语种 Current Language</div>
+            <div id="statusLanguage" class="status-meta-value">English</div>
+          </div>
+          <div class="status-meta-item">
+            <div class="status-meta-label">教师音频 Teacher Audio</div>
+            <div id="statusAudio" class="status-meta-value">关闭 Off</div>
+          </div>
         </div>
       </div>
 
-      <div class="landscape-grid">
-        <div class="subtitle-card">
-          <div class="subtitle-section">
-            <div class="section-label">教师原语言</div>
-            <div id="source" class="source">等待字幕...</div>
+      <div class="content-grid">
+        <div class="hero-card">
+          <div class="hero-panel">
+            <div class="hero-label-zh">教师原语言</div>
+            <div class="hero-label-en">Teacher Original</div>
+            <div id="source" class="hero-source">等待字幕...</div>
           </div>
-          <div class="subtitle-section">
-            <div class="section-label">目标翻译</div>
-            <div id="native" class="native">正在等待翻译...</div>
+          <div class="hero-panel">
+            <div class="hero-label-zh">目标翻译</div>
+            <div class="hero-label-en">Target Translation</div>
+            <div id="native" class="hero-translation">正在等待翻译...</div>
           </div>
         </div>
 
         <div class="history-card">
           <div class="history-header">
-            <div class="history-title">历史字幕</div>
-            <div class="history-note">最新在上</div>
+            <div class="history-title-wrap">
+              <div class="history-title-zh">历史字幕</div>
+              <div class="history-title-en">History</div>
+            </div>
+            <div class="history-note">最新在上 Newest First</div>
           </div>
           <div id="history" class="history-list"></div>
         </div>
@@ -648,47 +755,55 @@
     </div>
   </div>
 
-  <button id="toolbarToggle" class="fab" aria-label="打开设置">☰</button>
+  <button id="toolbarToggle" class="fab" aria-label="打开设置">
+    <span class="fab-zh">设置</span>
+    <span class="fab-en">Menu</span>
+  </button>
 
-  <div id="backdrop" class="backdrop"></div>
-
+  <div id="settingsBackdrop" class="overlay"></div>
   <div id="settingsSheet" class="settings-sheet" aria-hidden="true">
     <div class="sheet-handle"></div>
     <div class="sheet-header">
-      <div class="sheet-title">学生端设置</div>
-      <button id="toolbarHideBtn" class="btn btn-soft" style="width:110px; min-height:44px;">
+      <div class="sheet-title-wrap">
+        <div class="sheet-title-zh">学生端设置</div>
+        <div class="sheet-title-en">Student Settings</div>
+      </div>
+      <button id="toolbarHideBtn" class="btn btn-soft" style="width:112px; min-height:44px;">
         <span class="btn-zh">关闭面板</span>
         <span class="btn-en">Close</span>
       </button>
     </div>
     <div class="sheet-body">
       <section class="sheet-section">
-        <div class="sheet-section-title">观看语种</div>
-        <div class="sheet-section-tip">单次仅显示一种翻译语种。按钮采用中英双语，自动适应宽度，避免换行挤压。</div>
+        <div class="section-title-zh">观看语种</div>
+        <div class="section-title-en">Current Language</div>
+        <div class="section-tip">单次仅显示一种翻译语种。点击卡片后再确认，避免误触切换。</div>
         <div id="langGrid" class="lang-grid"></div>
-        <div class="sheet-button-grid single" style="margin-top:10px;">
+        <div class="button-grid single" style="margin-top:10px;">
           <button id="langConfirmBtn" class="btn btn-accent">
             <span class="btn-zh">确认语种</span>
-            <span class="btn-en">Confirm Language</span>
+            <span class="btn-en">Confirm</span>
           </button>
         </div>
       </section>
 
       <section class="sheet-section">
-        <div class="sheet-section-title">教师音频</div>
-        <div class="sheet-section-tip">默认关闭。点按后才会播放教师远端音频，更适合手机和平板使用场景。</div>
-        <div class="sheet-button-grid single">
+        <div class="section-title-zh">教师音频</div>
+        <div class="section-title-en">Teacher Audio</div>
+        <div class="section-tip">默认关闭。点按后才播放教师远端音频，更适合手机和平板场景。</div>
+        <div class="button-grid single">
           <button id="audioToggleBtn" class="btn btn-soft">
             <span class="btn-zh">开启教师声音</span>
-            <span class="btn-en">Turn Audio On</span>
+            <span class="btn-en">Enable Audio</span>
           </button>
         </div>
       </section>
 
       <section class="sheet-section">
-        <div class="sheet-section-title">课堂复盘</div>
-        <div class="sheet-section-tip">主页面只保留入口，不再展开复盘面板。</div>
-        <div class="sheet-button-grid single">
+        <div class="section-title-zh">课堂复盘</div>
+        <div class="section-title-en">Class Review</div>
+        <div class="section-tip">主页面只保留入口，不再展开复盘面板。</div>
+        <div class="button-grid single">
           <button id="openReviewBtn" class="btn btn-soft">
             <span class="btn-zh">打开课堂复盘</span>
             <span class="btn-en">Open Review</span>
@@ -697,8 +812,9 @@
       </section>
 
       <section class="sheet-section">
-        <div class="sheet-section-title">其他操作</div>
-        <div class="sheet-button-grid">
+        <div class="section-title-zh">其他操作</div>
+        <div class="section-title-en">More Actions</div>
+        <div class="button-grid">
           <button id="copyLinkBtn" class="btn btn-ghost">
             <span class="btn-zh">复制课堂链接</span>
             <span class="btn-en">Copy Link</span>
@@ -712,45 +828,54 @@
     </div>
   </div>
 
-  <div id="reviewBackdrop" class="backdrop"></div>
+  <div id="reviewBackdrop" class="overlay"></div>
   <div id="reviewModal" class="review-modal" aria-hidden="true">
-    <div class="review-modal-panel">
-      <div class="review-modal-header">
-        <div class="review-modal-title">课堂复盘</div>
-        <button id="closeReviewBtn" class="btn btn-soft" style="width:110px; min-height:44px;">
+    <div class="review-panel">
+      <div class="review-header">
+        <div class="review-title-wrap">
+          <div class="review-title-zh">课堂复盘</div>
+          <div class="review-title-en">Class Review</div>
+        </div>
+        <button id="closeReviewBtn" class="btn btn-soft" style="width:112px; min-height:44px;">
           <span class="btn-zh">关闭复盘</span>
           <span class="btn-en">Close</span>
         </button>
       </div>
-      <div class="review-modal-body">
-        <div class="review-buttons">
-          <button id="modeTeacher" class="btn review-mode active">
-            <span class="btn-zh">老师语言</span>
-            <span class="btn-en">Teacher</span>
-          </button>
-          <button id="modeStudent" class="btn review-mode btn-soft">
-            <span class="btn-zh">我的语言</span>
-            <span class="btn-en">Student</span>
-          </button>
-          <button id="modeDual" class="btn review-mode btn-soft">
-            <span class="btn-zh">双语对照</span>
-            <span class="btn-en">Bilingual</span>
-          </button>
-        </div>
-        <div class="review-actions">
-          <button id="generateBtn" class="btn btn-primary">
-            <span class="btn-zh">一键生成复盘</span>
-            <span class="btn-en">Generate Review</span>
-          </button>
-          <button id="downloadBtn" class="btn btn-ghost" disabled>
-            <span class="btn-zh">下载复盘文本</span>
-            <span class="btn-en">Download TXT</span>
-          </button>
-        </div>
-        <div class="preview-area">
-          <div class="preview-title">复盘预览 Review Preview</div>
-          <div id="previewContent">暂无内容，点击“一键生成复盘 / Generate Review”获取文本。</div>
-        </div>
+      <div class="review-body">
+        <section class="review-section">
+          <div class="button-grid triple">
+            <button id="modeTeacher" class="btn btn-primary">
+              <span class="btn-zh">老师语言</span>
+              <span class="btn-en">Teacher</span>
+            </button>
+            <button id="modeStudent" class="btn btn-soft">
+              <span class="btn-zh">我的语言</span>
+              <span class="btn-en">Student</span>
+            </button>
+            <button id="modeDual" class="btn btn-soft">
+              <span class="btn-zh">双语对照</span>
+              <span class="btn-en">Bilingual</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="review-section">
+          <div class="button-grid">
+            <button id="generateBtn" class="btn btn-primary">
+              <span class="btn-zh">一键生成复盘</span>
+              <span class="btn-en">Generate</span>
+            </button>
+            <button id="downloadBtn" class="btn btn-ghost" disabled>
+              <span class="btn-zh">下载复盘文本</span>
+              <span class="btn-en">Download TXT</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="review-section">
+          <div class="preview-label">复盘预览 Review Preview</div>
+          <div id="previewContent" class="review-preview">暂无内容，点击“一键生成复盘 / Generate”获取文本。</div>
+        </section>
       </div>
     </div>
   </div>
@@ -759,525 +884,512 @@
 </div>
 
 <script>
-const params = new URLSearchParams(location.search);
-function normalizeRoomCode(value) {
-  return String(value || '').trim().replace(/\D/g, '').slice(0, 6);
-}
-function getRoomCodeFromUrl() {
-  return normalizeRoomCode(
-    params.get('room') ||
-    params.get('code') ||
-    params.get('session') ||
-    params.get('classroom')
-  );
-}
+  const params = new URLSearchParams(location.search);
+  const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
+  const SDKAPPID = 1600133369;
 
-let roomId = getRoomCodeFromUrl();
-let trtc = null;
-let currentSubtitle = { roundId: 'initial', source_text: '', translations: {}, ended: true };
-let subtitleRoundStore = new Map();
-let historyList = [];
-let reviewMode = 'teacher';
-let reviewText = '';
-let selectedTargetLang = localStorage.getItem('student_lang') || 'en';
-let pendingTargetLang = selectedTargetLang;
-let teacherAudioEnabled = localStorage.getItem('student_teacher_audio') === '1';
-let teacherAudioObserved = false;
-let audioUnlockNeeded = false;
-let audioMuteObserver = null;
+  const LANGUAGE_OPTIONS = [
+    { value: 'en', label: 'English' },
+    { value: 'th', label: 'ไทย' },
+    { value: 'vi', label: 'Tiếng Việt' },
+    { value: 'id', label: 'Bahasa Indonesia' },
+    { value: 'ms', label: 'Bahasa Melayu' },
+    { value: 'fr', label: 'Français' },
+    { value: 'ja', label: '日本語' },
+    { value: 'ru', label: 'Русский' },
+    { value: 'ko', label: '한국어' },
+    { value: 'de', label: 'Deutsch' },
+    { value: 'es', label: 'Español' },
+    { value: 'pt', label: 'Português' },
+    { value: 'zh', label: '中文 (简体)' },
+    { value: 'it', label: 'Italiano' },
+    { value: 'ar', label: 'العربية' }
+  ];
+  const SUPPORTED_TRANSLATION_LANGS = LANGUAGE_OPTIONS.map(item => item.value);
 
-const LANGUAGE_OPTIONS = [
-  { value: 'en', label: 'English' },
-  { value: 'th', label: 'ไทย' },
-  { value: 'vi', label: 'Tiếng Việt' },
-  { value: 'id', label: 'Bahasa Indonesia' },
-  { value: 'ms', label: 'Bahasa Melayu' },
-  { value: 'fr', label: 'Français' },
-  { value: 'ja', label: '日本語' },
-  { value: 'ru', label: 'Русский' },
-  { value: 'ko', label: '한국어' },
-  { value: 'de', label: 'Deutsch' },
-  { value: 'es', label: 'Español' },
-  { value: 'pt', label: 'Português' },
-  { value: 'zh', label: '中文 (简体)' },
-  { value: 'it', label: 'Italiano' },
-  { value: 'ar', label: 'العربية' }
-];
+  function normalizeRoomCode(value) {
+    return String(value || '').trim().replace(/\D/g, '').slice(0, 6);
+  }
+  function getRoomCodeFromUrl() {
+    return normalizeRoomCode(
+      params.get('room') || params.get('code') || params.get('session') || params.get('classroom')
+    );
+  }
+  function safeStringify(value) {
+    try { return JSON.stringify(value); } catch { return String(value); }
+  }
+  function getLangLabel(value) {
+    return LANGUAGE_OPTIONS.find(item => item.value === value)?.label || value || 'English';
+  }
+  function pickFirstNonEmptyString(values) {
+    for (const value of values) {
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    return '';
+  }
+  function escapeHtml(str) {
+    return String(str ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
 
-const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
-const SDKAPPID = 1600133369;
-const SUPPORTED_TRANSLATION_LANGS = LANGUAGE_OPTIONS.map(item => item.value);
-if (!SUPPORTED_TRANSLATION_LANGS.includes(selectedTargetLang)) selectedTargetLang = 'en';
-if (!SUPPORTED_TRANSLATION_LANGS.includes(pendingTargetLang)) pendingTargetLang = selectedTargetLang;
+  let roomId = getRoomCodeFromUrl();
+  let trtc = null;
+  let currentSubtitle = { roundId: 'initial', source_text: '', translations: {}, ended: true };
+  let subtitleRoundStore = new Map();
+  let historyList = [];
+  let reviewMode = 'teacher';
+  let reviewText = '';
+  let selectedTargetLang = localStorage.getItem('student_lang') || 'en';
+  let pendingTargetLang = selectedTargetLang;
+  let teacherAudioEnabled = localStorage.getItem('student_teacher_audio') === '1';
+  let audioObserver = null;
 
-const sessionInputArea = document.getElementById('sessionInputArea');
-const mainContent = document.getElementById('mainContent');
-const roomCodeInput = document.getElementById('roomCodeInput');
-const confirmSessionBtn = document.getElementById('confirmSessionBtn');
-const sourceDiv = document.getElementById('source');
-const nativeDiv = document.getElementById('native');
-const historyDiv = document.getElementById('history');
-const statusConnectionDiv = document.getElementById('statusConnection');
-const statusLanguageDiv = document.getElementById('statusLanguage');
-const statusAudioDiv = document.getElementById('statusAudio');
-const toolbarToggle = document.getElementById('toolbarToggle');
-const toolbarHideBtn = document.getElementById('toolbarHideBtn');
-const settingsSheet = document.getElementById('settingsSheet');
-const backdrop = document.getElementById('backdrop');
-const langGrid = document.getElementById('langGrid');
-const langConfirmBtn = document.getElementById('langConfirmBtn');
-const audioToggleBtn = document.getElementById('audioToggleBtn');
-const openReviewBtn = document.getElementById('openReviewBtn');
-const copyLinkBtn = document.getElementById('copyLinkBtn');
-const reconnectBtn = document.getElementById('reconnectBtn');
-const reviewBackdrop = document.getElementById('reviewBackdrop');
-const reviewModal = document.getElementById('reviewModal');
-const closeReviewBtn = document.getElementById('closeReviewBtn');
-const modeTeacher = document.getElementById('modeTeacher');
-const modeStudent = document.getElementById('modeStudent');
-const modeDual = document.getElementById('modeDual');
-const generateBtn = document.getElementById('generateBtn');
-const downloadBtn = document.getElementById('downloadBtn');
-const previewContent = document.getElementById('previewContent');
-const hiddenAudioContainer = document.getElementById('hiddenAudioContainer');
+  if (!SUPPORTED_TRANSLATION_LANGS.includes(selectedTargetLang)) selectedTargetLang = 'en';
+  if (!SUPPORTED_TRANSLATION_LANGS.includes(pendingTargetLang)) pendingTargetLang = selectedTargetLang;
 
-function safeStringify(value) {
-  try { return JSON.stringify(value); } catch { return String(value); }
-}
+  const sessionInputArea = document.getElementById('sessionInputArea');
+  const mainContent = document.getElementById('mainContent');
+  const roomCodeInput = document.getElementById('roomCodeInput');
+  const confirmSessionBtn = document.getElementById('confirmSessionBtn');
+  const sourceDiv = document.getElementById('source');
+  const nativeDiv = document.getElementById('native');
+  const historyDiv = document.getElementById('history');
+  const statusMainZh = document.getElementById('statusMainZh');
+  const statusMainEn = document.getElementById('statusMainEn');
+  const statusLanguage = document.getElementById('statusLanguage');
+  const statusAudio = document.getElementById('statusAudio');
+  const toolbarToggle = document.getElementById('toolbarToggle');
+  const toolbarHideBtn = document.getElementById('toolbarHideBtn');
+  const settingsBackdrop = document.getElementById('settingsBackdrop');
+  const settingsSheet = document.getElementById('settingsSheet');
+  const langGrid = document.getElementById('langGrid');
+  const langConfirmBtn = document.getElementById('langConfirmBtn');
+  const audioToggleBtn = document.getElementById('audioToggleBtn');
+  const openReviewBtn = document.getElementById('openReviewBtn');
+  const copyLinkBtn = document.getElementById('copyLinkBtn');
+  const reconnectBtn = document.getElementById('reconnectBtn');
+  const reviewBackdrop = document.getElementById('reviewBackdrop');
+  const reviewModal = document.getElementById('reviewModal');
+  const closeReviewBtn = document.getElementById('closeReviewBtn');
+  const modeTeacher = document.getElementById('modeTeacher');
+  const modeStudent = document.getElementById('modeStudent');
+  const modeDual = document.getElementById('modeDual');
+  const generateBtn = document.getElementById('generateBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const previewContent = document.getElementById('previewContent');
 
-function getLangLabel(value) {
-  return LANGUAGE_OPTIONS.find(item => item.value === value)?.label || value;
-}
+  function setConnectionStatus(zh, en, kind = 'pending') {
+    statusMainZh.textContent = zh;
+    statusMainEn.textContent = en;
+    statusMainZh.classList.remove('pending', 'error', 'connected');
+    statusMainZh.classList.add(kind);
+  }
 
-function setConnectionStatus(text, kind = 'pending') {
-  statusConnectionDiv.textContent = text;
-  statusConnectionDiv.classList.remove('connected', 'error', 'pending');
-  statusConnectionDiv.classList.add(kind);
-}
+  function updateLanguageStatus() {
+    statusLanguage.textContent = getLangLabel(selectedTargetLang);
+  }
 
-function updateLanguageStatus() {
-  statusLanguageDiv.textContent = getLangLabel(selectedTargetLang);
-}
+  function applyAudioStateToDom() {
+    const medias = Array.from(document.querySelectorAll('audio, video'));
+    medias.forEach(media => {
+      media.muted = !teacherAudioEnabled;
+      if ('volume' in media) media.volume = teacherAudioEnabled ? 1 : 0;
+      if (teacherAudioEnabled && typeof media.play === 'function') {
+        const p = media.play();
+        if (p && typeof p.catch === 'function') p.catch(() => {});
+      }
+    });
+  }
 
-function updateAudioStatus() {
-  statusAudioDiv.textContent = teacherAudioEnabled ? '开启 On' : '关闭 Off';
-  audioToggleBtn.className = 'btn ' + (teacherAudioEnabled ? 'btn-success' : 'btn-soft');
-  audioToggleBtn.innerHTML = teacherAudioEnabled
-    ? '<span class="btn-zh">关闭教师声音</span><span class="btn-en">Turn Audio Off</span>'
-    : '<span class="btn-zh">开启教师声音</span><span class="btn-en">Turn Audio On</span>';
-}
+  function ensureAudioObserver() {
+    if (audioObserver) return;
+    audioObserver = new MutationObserver(() => applyAudioStateToDom());
+    audioObserver.observe(document.body, { childList: true, subtree: true });
+  }
 
-function mergeTranslationMap(target, candidate) {
-  if (!candidate || typeof candidate !== 'object') return target;
-  Object.entries(candidate).forEach(([lang, value]) => {
-    const key = String(lang || '').trim();
-    if (!key) return;
-    if (typeof value === 'string' && value.trim()) {
-      target[key] = value.trim();
+  function updateAudioStatus() {
+    statusAudio.textContent = teacherAudioEnabled ? '开启 On' : '关闭 Off';
+    audioToggleBtn.className = 'btn ' + (teacherAudioEnabled ? 'btn-success' : 'btn-soft');
+    audioToggleBtn.innerHTML = teacherAudioEnabled
+      ? '<span class="btn-zh">关闭教师声音</span><span class="btn-en">Disable Audio</span>'
+      : '<span class="btn-zh">开启教师声音</span><span class="btn-en">Enable Audio</span>';
+    localStorage.setItem('student_teacher_audio', teacherAudioEnabled ? '1' : '0');
+    applyAudioStateToDom();
+  }
+
+  function mergeTranslationMap(target, candidate) {
+    if (!candidate || typeof candidate !== 'object') return target;
+    Object.entries(candidate).forEach(([lang, value]) => {
+      const key = String(lang || '').trim();
+      if (!key) return;
+      if (typeof value === 'string' && value.trim()) {
+        target[key] = value.trim();
+        return;
+      }
+      if (value && typeof value === 'object') {
+        const nested = [value.text, value.translation_text, value.translationText, value.value, value.target_text, value.targetText]
+          .find(v => typeof v === 'string' && v.trim());
+        if (nested) target[key] = nested.trim();
+      }
+    });
+    return target;
+  }
+
+  function decodeCustomMessageData(data) {
+    if (!data) return null;
+    try {
+      if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
+        const decoded = new TextDecoder().decode(data);
+        return decoded ? JSON.parse(decoded) : null;
+      }
+      if (typeof data === 'string') return JSON.parse(data);
+      return data;
+    } catch (e) {
+      console.warn('CUSTOM_MESSAGE decode failed', e, data);
+      return null;
+    }
+  }
+
+  function normalizeSubtitleMessage(msg) {
+    const payload = (msg && typeof msg === 'object' && msg.payload && typeof msg.payload === 'object') ? msg.payload : {};
+    const typeValue = (msg && msg.type != null) ? Number(msg.type) : NaN;
+    const type = Number.isFinite(typeValue) ? typeValue : 0;
+    const sourceText = pickFirstNonEmptyString([payload.text, payload.source_text, payload.sourceText, msg && msg.source_text, msg && msg.text]);
+    const translationText = pickFirstNonEmptyString([payload.translation_text, payload.translationText, payload.target_text, payload.targetText, msg && msg.translation_text]);
+    const translationLanguage = pickFirstNonEmptyString([payload.translation_language, payload.translationLanguage, payload.target_language, payload.targetLanguage, msg && msg.translation_language]);
+    const translations = mergeTranslationMap(mergeTranslationMap({}, payload.translations), msg && msg.translations);
+    if (translationText) translations[translationLanguage || 'default'] = translationText;
+    const roundId = pickFirstNonEmptyString([payload.roundid, payload.roundId, msg && msg.roundid, msg && msg.roundId]) || 'default';
+    const end = typeof payload.end === 'boolean' ? payload.end : !!(payload.is_final || payload.final || (msg && msg.end));
+    const statusMessage = pickFirstNonEmptyString([payload.message, payload.status, payload.metric, payload.code != null ? String(payload.code) : '']);
+    return {
+      raw: msg,
+      payload,
+      type,
+      roundId,
+      sourceText,
+      translationText,
+      translationLanguage,
+      translations,
+      end,
+      statusMessage,
+      isSubtitleLike: type === 10000 || !!sourceText || !!translationText || msg.cmd === 'translated_subtitle'
+    };
+  }
+
+  function mergeSubtitleRound(store, normalized) {
+    const roundId = normalized.roundId || 'default';
+    const existing = store.get(roundId) || { roundId, source_text: '', translations: {}, ended: false, updatedAt: 0 };
+    const merged = {
+      roundId,
+      source_text: normalized.sourceText || existing.source_text || '',
+      translations: Object.assign({}, existing.translations),
+      ended: normalized.end,
+      updatedAt: Date.now()
+    };
+    mergeTranslationMap(merged.translations, normalized.translations);
+    if (normalized.translationText) merged.translations[normalized.translationLanguage || 'default'] = normalized.translationText;
+    if (!normalized.sourceText && !normalized.translationText) merged.ended = existing.ended;
+    store.set(roundId, merged);
+    return merged;
+  }
+
+  function getPreferredTranslation(translations) {
+    const map = translations || {};
+    return map[selectedTargetLang] || Object.values(map)[0] || '';
+  }
+
+  function renderCurrentSubtitle() {
+    sourceDiv.textContent = currentSubtitle.source_text || '等待字幕...';
+    nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '正在等待翻译...';
+  }
+
+  function pushHistorySnapshot(snapshot) {
+    const current = snapshot || currentSubtitle;
+    const source = (current.source_text || '').trim();
+    if (!source) return;
+    const translation = getPreferredTranslation(current.translations) || '';
+    const previous = historyList[0];
+    if (previous && previous.source === source) {
+      previous.translation = translation;
+      previous.translations = Object.assign({}, current.translations);
+      previous.timestamp = new Date().toLocaleTimeString();
+    } else {
+      historyList.unshift({
+        source,
+        translation,
+        timestamp: new Date().toLocaleTimeString(),
+        translations: Object.assign({}, current.translations)
+      });
+      if (historyList.length > 50) historyList.pop();
+    }
+    renderHistory();
+  }
+
+  function renderHistory() {
+    if (!historyList.length) {
+      historyDiv.innerHTML = '<div class="history-empty">暂无历史记录</div>';
       return;
     }
-    if (value && typeof value === 'object') {
-      const nested = [value.text, value.translation_text, value.translationText, value.value, value.target_text, value.targetText].find(v => typeof v === 'string' && v.trim());
-      if (nested) target[key] = nested.trim();
+    historyDiv.innerHTML = historyList.map((item, index) => {
+      const translated = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
+      const level = Math.min(index, 4);
+      return `
+        <div class="history-item level-${level}">
+          <div class="history-source">${escapeHtml(item.source)}</div>
+          <div class="history-translation">${escapeHtml(translated || '正在等待翻译...')}</div>
+          <div class="history-time">${escapeHtml(item.timestamp)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderLangChooser() {
+    langGrid.innerHTML = LANGUAGE_OPTIONS.map(item => {
+      const selected = item.value === pendingTargetLang ? 'selected' : '';
+      return `<button type="button" class="lang-option ${selected}" data-lang="${item.value}" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</button>`;
+    }).join('');
+  }
+
+  function setReviewMode(mode) {
+    reviewMode = mode;
+    const defs = [
+      [modeTeacher, 'teacher'],
+      [modeStudent, 'student'],
+      [modeDual, 'dual']
+    ];
+    defs.forEach(([button, value]) => {
+      const active = value === mode;
+      button.className = 'btn ' + (active ? 'btn-primary' : 'btn-soft');
+    });
+  }
+
+  function buildReviewText() {
+    if (!historyList.length) return '暂无课堂记录。';
+    const lines = historyList.slice().reverse().map(item => {
+      const teacher = item.source || '';
+      const student = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
+      if (reviewMode === 'teacher') return teacher;
+      if (reviewMode === 'student') return student || teacher;
+      return `老师: ${teacher}\n学生: ${student || '（暂无翻译）'}`;
+    });
+    return lines.join('\n\n');
+  }
+
+  function downloadReview() {
+    if (!reviewText) return;
+    const blob = new Blob([reviewText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `class-review-${roomId || 'session'}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function postJson(url, payload) {
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (networkErr) {
+      throw new Error(`网络请求失败：${networkErr?.message || networkErr}`);
     }
+    const rawText = await response.text().catch(() => '');
+    let data = null;
+    try {
+      data = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      throw new Error(`接口返回非 JSON（${response.status}）：${rawText || 'empty response'}`);
+    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${rawText || JSON.stringify(data)}`);
+    if (data && data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+    return data || {};
+  }
+
+  async function getUserSig(userId, room) {
+    const data = await postJson(GET_USERSIG_URL, { userId, roomId: room });
+    if (!data.userSig) throw new Error('获取 UserSig 失败');
+    return data.userSig;
+  }
+
+  function openSettingsSheet() {
+    settingsSheet.classList.add('open');
+    settingsBackdrop.classList.add('open');
+    settingsSheet.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeSettingsSheet() {
+    settingsSheet.classList.remove('open');
+    settingsBackdrop.classList.remove('open');
+    settingsSheet.setAttribute('aria-hidden', 'true');
+  }
+
+  function openReviewModal() {
+    reviewModal.classList.add('open');
+    reviewBackdrop.classList.add('open');
+    reviewModal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeReviewModal() {
+    reviewModal.classList.remove('open');
+    reviewBackdrop.classList.remove('open');
+    reviewModal.setAttribute('aria-hidden', 'true');
+  }
+
+  async function startConnection(room) {
+    const userId = `student_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    try {
+      setConnectionStatus('正在获取签名', 'Getting UserSig', 'pending');
+      const userSig = await getUserSig(userId, room);
+      setConnectionStatus('正在进入课堂', 'Joining Class', 'pending');
+      trtc = TRTC.create();
+      trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
+      await trtc.enterRoom({ sdkAppId: SDKAPPID, roomId: parseInt(room, 10), scene: 'rtc', userId, userSig });
+      setConnectionStatus('已连接课堂', 'Connected', 'connected');
+      ensureAudioObserver();
+      applyAudioStateToDom();
+    } catch (err) {
+      console.error('student connect failed:', err);
+      setConnectionStatus('连接失败', String(err?.message || err), 'error');
+    }
+  }
+
+  function onCustomMessage(event) {
+    const msg = decodeCustomMessageData(event.data);
+    if (!msg) return;
+    console.log('STUDENT CUSTOM_MESSAGE:', safeStringify(msg));
+
+    if (msg.cmd === 'translated_subtitle') {
+      const merged = {
+        roundId: String(msg.roundId || Date.now()),
+        source_text: msg.source_text || '',
+        translations: msg.translations || {},
+        ended: !!msg.end
+      };
+      currentSubtitle = merged;
+      renderCurrentSubtitle();
+      setConnectionStatus('已连接课堂', 'Receiving Subtitles', 'connected');
+      if (merged.ended) pushHistorySnapshot(merged);
+      return;
+    }
+
+    const normalized = normalizeSubtitleMessage(msg);
+    if (!normalized.isSubtitleLike) {
+      if (normalized.type === 10001) setConnectionStatus('已连接课堂', normalized.statusMessage || 'AI Status', 'connected');
+      if (normalized.type === 10030) setConnectionStatus('服务异常', normalized.statusMessage || 'AI Error', 'error');
+      return;
+    }
+    const merged = mergeSubtitleRound(subtitleRoundStore, normalized);
+    currentSubtitle = merged;
+    renderCurrentSubtitle();
+    setConnectionStatus('已连接课堂', 'Receiving Subtitles', 'connected');
+    if (merged.ended) pushHistorySnapshot(merged);
+  }
+
+  function reconnectCurrentRoom() {
+    if (!roomId) return;
+    location.reload();
+  }
+
+  confirmSessionBtn.addEventListener('click', () => {
+    const inputCode = normalizeRoomCode(roomCodeInput.value);
+    if (!inputCode) {
+      alert('请输入有效课程码');
+      return;
+    }
+    const url = new URL(location.href);
+    url.search = '';
+    url.searchParams.set('room', inputCode);
+    url.searchParams.set('code', inputCode);
+    location.href = url.toString();
   });
-  return target;
-}
+  roomCodeInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmSessionBtn.click();
+  });
 
-function pickFirstNonEmptyString(values) {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) return value.trim();
-  }
-  return '';
-}
+  toolbarToggle.addEventListener('click', openSettingsSheet);
+  toolbarHideBtn.addEventListener('click', closeSettingsSheet);
+  settingsBackdrop.addEventListener('click', closeSettingsSheet);
+  reviewBackdrop.addEventListener('click', closeReviewModal);
+  openReviewBtn.addEventListener('click', () => {
+    closeSettingsSheet();
+    openReviewModal();
+  });
+  closeReviewBtn.addEventListener('click', closeReviewModal);
 
-function decodeCustomMessageData(data) {
-  if (!data) return null;
-  try {
-    if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
-      const decoded = new TextDecoder().decode(data);
-      return decoded ? JSON.parse(decoded) : null;
-    }
-    if (typeof data === 'string') return JSON.parse(data);
-    return data;
-  } catch (e) {
-    console.warn('STUDENT CUSTOM_MESSAGE decode failed', e, data);
-    return null;
-  }
-}
-
-function normalizeSubtitleMessage(msg) {
-  const payload = (msg && typeof msg === 'object' && msg.payload && typeof msg.payload === 'object') ? msg.payload : {};
-  const typeValue = (msg && msg.type != null) ? Number(msg.type) : NaN;
-  const type = Number.isFinite(typeValue) ? typeValue : 0;
-  const sourceText = pickFirstNonEmptyString([payload.text, payload.source_text, payload.sourceText, msg && msg.source_text, msg && msg.text]);
-  const translationText = pickFirstNonEmptyString([payload.translation_text, payload.translationText, payload.target_text, msg && msg.translation_text]);
-  const translationLanguage = pickFirstNonEmptyString([payload.translation_language, payload.translationLanguage, payload.target_language, msg && msg.translation_language]);
-  const translations = mergeTranslationMap(mergeTranslationMap({}, payload.translations), msg && msg.translations);
-  if (translationText) translations[translationLanguage || 'default'] = translationText;
-  const roundId = pickFirstNonEmptyString([payload.roundid, payload.roundId, msg && msg.roundid, msg && msg.roundId]) || 'default';
-  const end = typeof payload.end === 'boolean' ? payload.end : !!(payload.is_final || payload.final || (msg && msg.end));
-  const statusMessage = pickFirstNonEmptyString([payload.message, payload.status, payload.metric, payload.code != null ? String(payload.code) : '']);
-  return { raw: msg, payload, type, roundId, sourceText, translationText, translationLanguage, translations, end, statusMessage, sender: pickFirstNonEmptyString([msg && msg.sender, msg && msg.userId, payload.sender]), isSubtitleLike: type === 10000 || !!sourceText || !!translationText || msg.cmd === 'translated_subtitle' };
-}
-
-function mergeSubtitleRound(store, normalized) {
-  const roundId = normalized.roundId || 'default';
-  const existing = store.get(roundId) || { roundId, source_text: '', translations: {}, ended: false, updatedAt: 0 };
-  const merged = { roundId, source_text: normalized.sourceText || existing.source_text || '', translations: Object.assign({}, existing.translations), ended: normalized.end, updatedAt: Date.now() };
-  mergeTranslationMap(merged.translations, normalized.translations);
-  if (normalized.translationText) merged.translations[normalized.translationLanguage || 'default'] = normalized.translationText;
-  if (!normalized.sourceText && !normalized.translationText) merged.ended = existing.ended;
-  store.set(roundId, merged);
-  return merged;
-}
-
-function getPreferredTranslation(translations) {
-  const map = translations || {};
-  return map[selectedTargetLang] || Object.values(map)[0] || '';
-}
-
-function renderCurrentSubtitle() {
-  sourceDiv.textContent = currentSubtitle.source_text || '等待字幕...';
-  nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '正在等待翻译...';
-}
-
-function escapeHtml(str) {
-  return String(str ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
-}
-
-function pushHistorySnapshot(snapshot) {
-  const current = snapshot || currentSubtitle;
-  const source = (current.source_text || '').trim();
-  if (!source) return;
-  const translation = getPreferredTranslation(current.translations) || '';
-  const previous = historyList[0];
-  if (previous && previous.source === source) {
-    previous.translation = translation;
-    previous.translations = Object.assign({}, current.translations);
-    previous.timestamp = new Date().toLocaleTimeString();
-  } else {
-    historyList.unshift({ source, translation, timestamp: new Date().toLocaleTimeString(), translations: Object.assign({}, current.translations) });
-    if (historyList.length > 50) historyList.pop();
-  }
-  renderHistory();
-}
-
-function renderHistory() {
-  if (historyList.length === 0) {
-    historyDiv.innerHTML = '<div class="history-empty">暂无历史记录</div>';
-    return;
-  }
-  historyDiv.innerHTML = historyList.map((item, index) => {
-    const translated = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
-    const level = Math.min(index, 4);
-    return `
-      <div class="history-item level-${level}">
-        <div class="history-source">${escapeHtml(item.source)}</div>
-        <div class="history-translation">${escapeHtml(translated || '正在等待翻译...')}</div>
-        <div class="history-time">${escapeHtml(item.timestamp)}</div>
-      </div>`;
-  }).join('');
-}
-
-function renderLangChooser() {
-  langGrid.innerHTML = LANGUAGE_OPTIONS.map(item => {
-    const selectedClass = item.value === pendingTargetLang ? 'selected' : '';
-    return `<button type="button" class="lang-option ${selectedClass}" data-lang="${item.value}" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</button>`;
-  }).join('');
-}
-
-function bindLangPicker() {
   langGrid.addEventListener('click', event => {
     const button = event.target.closest('.lang-option');
     if (!button) return;
     pendingTargetLang = button.dataset.lang || selectedTargetLang;
     renderLangChooser();
   });
-}
 
-async function postJson(url, params) {
-  let response;
-  try {
-    response = await fetch(url, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
-  } catch (networkErr) {
-    throw new Error(`网络请求失败：${networkErr?.message || networkErr}`);
-  }
-  const rawText = await response.text().catch(() => '');
-  let data = null;
-  try { data = rawText ? JSON.parse(rawText) : null; } catch { throw new Error(`接口返回非 JSON（${response.status}）：${rawText || 'empty response'}`); }
-  if (!response.ok) throw new Error(`HTTP ${response.status}: ${rawText || JSON.stringify(data)}`);
-  if (data && data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
-  return data || {};
-}
-
-async function getUserSig(userId, roomId) {
-  const data = await postJson(GET_USERSIG_URL, { userId, roomId });
-  if (!data.userSig) throw new Error('获取 UserSig 失败');
-  return data.userSig;
-}
-
-function closeSettingsSheet() {
-  settingsSheet.classList.remove('open');
-  backdrop.classList.remove('open');
-  settingsSheet.setAttribute('aria-hidden', 'true');
-}
-
-function openSettingsSheet() {
-  settingsSheet.classList.add('open');
-  backdrop.classList.add('open');
-  settingsSheet.setAttribute('aria-hidden', 'false');
-}
-
-function openReviewModal() {
-  reviewModal.classList.add('open');
-  reviewBackdrop.classList.add('open');
-  reviewModal.setAttribute('aria-hidden', 'false');
-}
-
-function closeReviewModal() {
-  reviewModal.classList.remove('open');
-  reviewBackdrop.classList.remove('open');
-  reviewModal.setAttribute('aria-hidden', 'true');
-}
-
-function setReviewMode(mode) {
-  reviewMode = mode;
-  const mapping = [
-    [modeTeacher, 'teacher'],
-    [modeStudent, 'student'],
-    [modeDual, 'dual']
-  ];
-  mapping.forEach(([button, value]) => {
-    const active = value === mode;
-    button.classList.toggle('active', active);
-    button.classList.toggle('btn-soft', !active);
-  });
-}
-
-function buildReviewText() {
-  if (!historyList.length) return '暂无课堂记录。';
-  const lines = historyList.slice().reverse().map(item => {
-    const teacher = item.source || '';
-    const student = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
-    if (reviewMode === 'teacher') return teacher;
-    if (reviewMode === 'student') return student || teacher;
-    return `老师: ${teacher}\n学生: ${student || '（暂无翻译）'}`;
-  });
-  return lines.join('\n\n');
-}
-
-function downloadReview() {
-  if (!reviewText) return;
-  const blob = new Blob([reviewText], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `class-review-${roomId || 'session'}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function applyAudioStateToDom() {
-  const medias = Array.from(document.querySelectorAll('audio, video'));
-  medias.forEach(media => {
-    if (media.closest('#hiddenAudioContainer')) return;
-    media.muted = !teacherAudioEnabled;
-    media.volume = teacherAudioEnabled ? 1 : 0;
-    if (teacherAudioEnabled) {
-      const playPromise = media.play?.();
-      if (playPromise && typeof playPromise.catch === 'function') {
-        playPromise.catch(() => { audioUnlockNeeded = true; });
-      }
-    }
-  });
-}
-
-function ensureAudioMuteObserver() {
-  if (audioMuteObserver) return;
-  audioMuteObserver = new MutationObserver(() => applyAudioStateToDom());
-  audioMuteObserver.observe(document.body, { childList: true, subtree: true });
-}
-
-function setTeacherAudioEnabled(enabled, userTriggered = false) {
-  teacherAudioEnabled = !!enabled;
-  localStorage.setItem('student_teacher_audio', teacherAudioEnabled ? '1' : '0');
-  updateAudioStatus();
-  applyAudioStateToDom();
-  if (userTriggered && teacherAudioEnabled) audioUnlockNeeded = false;
-  if (userTriggered) {
-    setConnectionStatus(
-      teacherAudioEnabled
-        ? (teacherAudioObserved ? '已开启教师声音' : '教师声音已开启，等待音频')
-        : '已关闭教师声音',
-      'connected'
-    );
-  }
-}
-
-function noteTeacherAudioAvailable() {
-  teacherAudioObserved = true;
-  if (!teacherAudioEnabled) applyAudioStateToDom();
-}
-
-async function startConnection(room) {
-  const userId = `student_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-  try {
-    setConnectionStatus('正在获取签名', 'pending');
-    const userSig = await getUserSig(userId, room);
-    trtc = TRTC.create();
-    trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
-    if (TRTC.EVENT.REMOTE_AUDIO_AVAILABLE) {
-      trtc.on(TRTC.EVENT.REMOTE_AUDIO_AVAILABLE, () => {
-        noteTeacherAudioAvailable();
-        if (teacherAudioEnabled) applyAudioStateToDom();
-      });
-    }
-    await trtc.enterRoom({ sdkAppId: SDKAPPID, roomId: parseInt(room, 10), scene: 'rtc', userId, userSig });
-    setConnectionStatus('已连接课堂', 'connected');
-    ensureAudioMuteObserver();
-    applyAudioStateToDom();
-  } catch (err) {
-    console.error('student connect failed:', err);
-    setConnectionStatus('连接失败', 'error');
-    previewContent.textContent = `连接失败：${err?.message || String(err)}`;
-  }
-}
-
-async function reconnectRoom() {
-  if (!roomId) return;
-  try {
-    setConnectionStatus('正在重新连接', 'pending');
-    if (trtc) {
-      try { await trtc.exitRoom(); } catch (e) { console.warn('exitRoom failed', e); }
-      trtc = null;
-    }
-    subtitleRoundStore = new Map();
-    await startConnection(roomId);
-  } catch (e) {
-    setConnectionStatus('重连失败', 'error');
-  }
-}
-
-function onCustomMessage(event) {
-  const msg = decodeCustomMessageData(event.data);
-  if (!msg) return;
-  console.log('STUDENT CUSTOM_MESSAGE decoded JSON:', safeStringify(msg));
-
-  if (msg.cmd === 'translated_subtitle') {
-    const merged = { roundId: String(msg.roundId || Date.now()), source_text: msg.source_text || '', translations: msg.translations || {}, ended: !!msg.end };
-    currentSubtitle = merged;
+  langConfirmBtn.addEventListener('click', () => {
+    selectedTargetLang = pendingTargetLang;
+    localStorage.setItem('student_lang', selectedTargetLang);
+    updateLanguageStatus();
     renderCurrentSubtitle();
-    setConnectionStatus('字幕接收中', 'connected');
-    if (merged.ended) pushHistorySnapshot(merged);
-    return;
-  }
-
-  const normalized = normalizeSubtitleMessage(msg);
-  console.log('STUDENT CUSTOM_MESSAGE normalized JSON:', safeStringify({ type: normalized.type, roundId: normalized.roundId, sender: normalized.sender, sourceText: normalized.sourceText, end: normalized.end, statusMessage: normalized.statusMessage }));
-  if (!normalized.isSubtitleLike) {
-    if (normalized.type === 10001) setConnectionStatus('AI 状态：' + (normalized.statusMessage || '已收到'), 'connected');
-    else if (normalized.type === 10030) setConnectionStatus('AI 服务异常', 'error');
-    return;
-  }
-  const merged = mergeSubtitleRound(subtitleRoundStore, normalized);
-  currentSubtitle = merged;
-  renderCurrentSubtitle();
-  setConnectionStatus('字幕接收中', 'connected');
-  if (merged.ended) pushHistorySnapshot(merged);
-}
-
-if (!roomId) {
-  sessionInputArea.style.display = 'block';
-  mainContent.style.display = 'none';
-} else {
-  roomCodeInput.value = roomId;
-  sessionInputArea.style.display = 'none';
-  mainContent.style.display = 'block';
-  startConnection(roomId);
-}
-
-confirmSessionBtn.addEventListener('click', () => {
-  const inputCode = normalizeRoomCode(roomCodeInput.value);
-  if (!inputCode) {
-    alert('请输入有效课程码');
-    return;
-  }
-  const url = new URL(location.href);
-  url.search = '';
-  url.searchParams.set('room', inputCode);
-  url.searchParams.set('code', inputCode);
-  location.href = url.toString();
-});
-roomCodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') confirmSessionBtn.click(); });
-
-toolbarToggle.addEventListener('click', openSettingsSheet);
-toolbarHideBtn.addEventListener('click', closeSettingsSheet);
-backdrop.addEventListener('click', closeSettingsSheet);
-reviewBackdrop.addEventListener('click', closeReviewModal);
-openReviewBtn.addEventListener('click', () => {
-  closeSettingsSheet();
-  openReviewModal();
-});
-closeReviewBtn.addEventListener('click', closeReviewModal);
-
-bindLangPicker();
-renderLangChooser();
-updateLanguageStatus();
-updateAudioStatus();
-langConfirmBtn.addEventListener('click', () => {
-  selectedTargetLang = pendingTargetLang || selectedTargetLang;
-  localStorage.setItem('student_lang', selectedTargetLang);
-  updateLanguageStatus();
-  renderLangChooser();
-  renderCurrentSubtitle();
-  renderHistory();
-  closeSettingsSheet();
-  setConnectionStatus('已切换语种', 'connected');
-});
-
-audioToggleBtn.addEventListener('click', () => setTeacherAudioEnabled(!teacherAudioEnabled, true));
-copyLinkBtn.addEventListener('click', async () => {
-  try {
-    const url = new URL(location.href);
-    const code = normalizeRoomCode(roomId || roomCodeInput.value);
-    if (code) {
-      url.search = '';
-      url.searchParams.set('room', code);
-      url.searchParams.set('code', code);
-    }
-    await navigator.clipboard.writeText(url.toString());
-    setConnectionStatus('链接已复制', 'connected');
-  } catch {
-    alert('复制失败，请手动复制');
-  }
-});
-reconnectBtn.addEventListener('click', async () => {
-  closeSettingsSheet();
-  await reconnectRoom();
-});
-
-modeTeacher.addEventListener('click', () => setReviewMode('teacher'));
-modeStudent.addEventListener('click', () => setReviewMode('student'));
-modeDual.addEventListener('click', () => setReviewMode('dual'));
-generateBtn.addEventListener('click', () => {
-  reviewText = buildReviewText();
-  previewContent.textContent = reviewText;
-  downloadBtn.disabled = !reviewText;
-});
-downloadBtn.addEventListener('click', downloadReview);
-
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') {
+    renderHistory();
+    setConnectionStatus('已切换语种', getLangLabel(selectedTargetLang), 'connected');
     closeSettingsSheet();
-    closeReviewModal();
-  }
-});
+  });
 
-ensureAudioMuteObserver();
-setTeacherAudioEnabled(teacherAudioEnabled, false);
-renderCurrentSubtitle();
-renderHistory();
+  audioToggleBtn.addEventListener('click', () => {
+    teacherAudioEnabled = !teacherAudioEnabled;
+    updateAudioStatus();
+  });
+
+  copyLinkBtn.addEventListener('click', async () => {
+    try {
+      const url = new URL(location.href);
+      const code = normalizeRoomCode(roomId || roomCodeInput.value);
+      if (code) {
+        url.search = '';
+        url.searchParams.set('room', code);
+        url.searchParams.set('code', code);
+      }
+      await navigator.clipboard.writeText(url.toString());
+      alert('链接已复制');
+    } catch {
+      alert('复制失败，请手动复制');
+    }
+  });
+
+  reconnectBtn.addEventListener('click', reconnectCurrentRoom);
+  modeTeacher.addEventListener('click', () => setReviewMode('teacher'));
+  modeStudent.addEventListener('click', () => setReviewMode('student'));
+  modeDual.addEventListener('click', () => setReviewMode('dual'));
+  generateBtn.addEventListener('click', () => {
+    reviewText = buildReviewText();
+    previewContent.textContent = reviewText;
+    downloadBtn.disabled = !reviewText;
+  });
+  downloadBtn.addEventListener('click', downloadReview);
+
+  renderLangChooser();
+  renderHistory();
+  updateLanguageStatus();
+  updateAudioStatus();
+  setReviewMode('teacher');
+  renderCurrentSubtitle();
+
+  if (!roomId) {
+    sessionInputArea.classList.remove('hidden');
+    mainContent.style.display = 'none';
+  } else {
+    roomCodeInput.value = roomId;
+    sessionInputArea.classList.add('hidden');
+    mainContent.style.display = 'block';
+    startConnection(roomId);
+  }
 </script>
 </body>
 </html>
