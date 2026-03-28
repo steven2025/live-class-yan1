@@ -459,10 +459,11 @@ function onCustomMessage(event) {
 }
 function buildStudentUrl(sessionCode) {
   const url = new URL(window.location.href);
-  const currentFile = url.pathname.split('/').pop() || '';
-  if (/teacher1?(?:_optimized)?\.html?$/i.test(currentFile)) url.pathname = url.pathname.replace(/teacher1?(?:_optimized)?\.html?$/i, 'student.html');
-  else if (!/student\.html?$/i.test(currentFile)) url.pathname = url.pathname.replace(/[^/]*$/, 'student.html');
-  url.search = '?room=' + encodeURIComponent(sessionCode || '');
+  const pathname = url.pathname || '/';
+  const basePath = pathname.replace(/\/teacher\.html?$/i, '/');
+  url.pathname = basePath.endsWith('/') ? basePath : (basePath + '/');
+  url.search = '';
+  if (sessionCode) url.searchParams.set('room', sessionCode);
   url.hash = '';
   return url.toString();
 }
