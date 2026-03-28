@@ -284,7 +284,7 @@ const START_AI_URL = 'https://1311686407-jpi1vwtz9x.ap-guangzhou.tencentscf.com'
 const STOP_AI_URL = 'https://1311686407-0hao9da3yt.ap-guangzhou.tencentscf.com';
 const TRANSLATE_URL = 'https://1311686407-7ccgq1nhg9.ap-guangzhou.tencentscf.com';
 const SDKAPPID = 1600133369;
-const TEACHER_PASSWORDS_URL = 'https://live-class-yan1-1311686407.cos.ap-guangzhou.myqcloud.com/%E6%95%99%E5%B8%88%E7%99%BB%E5%BD%95%E5%AF%86%E7%A0%81.txt';
+const TEACHER_PASSWORDS_URL = 'https://live-class-yan1-1311686407.cos.ap-guangzhou.myqcloud.com/jsmima.txt';
 const AUTH_STORAGE_KEY = 'teacher_invite_authed';
 const SUPPORTED_TRANSLATION_LANGS = LANGUAGE_OPTIONS.map(item => item.value);
 const AI_MESSAGE_TYPES = new Set([10000, 10020, 10001, 10030, 10003]);
@@ -406,7 +406,8 @@ async function verifyTeacherInvite() {
 function renderLanguageSummary() {
   const activeLabels = getActiveStudentLanguages().map(getLanguageLabel);
   langSummary.textContent = activeLabels.length
-    ? '当前在线学生语种：' + activeLabels.join('、') + '；
+    ? '当前在线学生语种：' + activeLabels.join('、') + '；默认兜底语种：English'
+    : '默认兜底语种：English；学生在线语种将自动覆盖。';
 }
 function estimateAddedChars(currentText, lastText) {
   if (!lastText) return currentText.length;
