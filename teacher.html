@@ -18,22 +18,55 @@
 
     .control-bar { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
     .icon-btn {
-      width: 88px; height: 88px; border-radius: 28px; border: none; cursor: pointer;
-      display: inline-flex; align-items: center; justify-content: center;
-      font-size: 36px; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.18);
-      transition: transform .15s ease, opacity .15s ease;
+      width: 88px; height: 88px; border-radius: 28px; border: 3px solid transparent; cursor: pointer;
+      display: inline-flex; align-items: flex-start; justify-content: center;
+      padding-top: 14px; position: relative;
+      font-size: 34px; color: #fff; font-weight: 900;
+      box-shadow: 0 12px 30px rgba(0,0,0,.22);
+      transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
     }
-    .icon-btn:hover { transform: translateY(-1px); }
-    .icon-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
-    .play-btn { background: #16a34a; }
-    .pause-btn { background: #f59e0b; }
-    .stop-btn { background: #ef4444; }
-    .new-session-btn { background: #2563eb; color: white; border: none; border-radius: 16px; padding: 14px 18px; font-size: 16px; cursor: pointer; }
-    .login-trigger-btn { background: rgba(37, 99, 235, 0.12); color: rgba(255,255,255,0.22); border: 1px dashed rgba(148, 163, 184, 0.12); border-radius: 14px; padding: 12px 14px; font-size: 14px; cursor: pointer; min-width: 72px; }
-    .login-trigger-btn:hover { background: rgba(37, 99, 235, 0.16); }
-    .locked-btn { opacity: .38 !important; cursor: not-allowed !important; }
-    .auth-badge { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: #3f1d1d; color: #fecaca; border: 1px solid #7f1d1d; }
-    .auth-badge.ok { background: #16351f; color: #bbf7d0; border-color: #166534; }
+    .icon-btn::after {
+      content: attr(data-label);
+      position: absolute;
+      left: 0; right: 0; bottom: 10px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .02em;
+      color: currentColor;
+    }
+    .icon-btn:hover { transform: translateY(-1px); box-shadow: 0 14px 32px rgba(0,0,0,.28); }
+    .icon-btn:disabled {
+      opacity: 1;
+      cursor: not-allowed;
+      transform: none;
+      background: #334155 !important;
+      color: #94a3b8 !important;
+      border-color: #64748b !important;
+      box-shadow: none;
+      filter: grayscale(.15);
+    }
+    .play-btn { background: #16a34a; border-color: #dcfce7; }
+    .pause-btn { background: #d97706; border-color: #fef3c7; color: #fff7ed; }
+    .stop-btn { background: #dc2626; border-color: #fee2e2; }
+    .new-session-btn { background: #2563eb; color: white; border: 2px solid #bfdbfe; border-radius: 16px; padding: 14px 18px; font-size: 16px; font-weight: 800; cursor: pointer; }
+    .new-session-btn:disabled {
+      background: #334155; color: #94a3b8; border-color: #64748b; cursor: not-allowed;
+    }
+    .login-trigger-btn { background: #1d4ed8; color: #ffffff; border: 2px solid #bfdbfe; border-radius: 14px; padding: 12px 16px; font-size: 14px; font-weight: 800; cursor: pointer; min-width: 86px; }
+    .login-trigger-btn:hover { background: #2563eb; }
+    .login-trigger-btn.logged-in { background: #166534; border-color: #bbf7d0; }
+    .locked-btn {
+      opacity: 1 !important;
+      cursor: not-allowed !important;
+      background: #334155 !important;
+      color: #94a3b8 !important;
+      border-color: #64748b !important;
+      box-shadow: none !important;
+      filter: grayscale(.15);
+    }
+    .auth-badge { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 800; background: #3f1d1d; color: #fecaca; border: 1px solid #7f1d1d; }
+    .auth-badge.ok { background: #16351f; color: #bbf7d0; border-color: #22c55e; }
     .auth-overlay { position: fixed; inset: 0; background: rgba(2, 6, 23, .72); display: none; align-items: center; justify-content: center; padding: 18px; z-index: 1000; }
     .auth-overlay.open { display: flex; }
     .auth-modal { width: min(420px, 100%); background: #111827; border: 1px solid #334155; border-radius: 22px; padding: 20px; box-shadow: 0 18px 48px rgba(0,0,0,.38); }
@@ -72,7 +105,8 @@
 
     @media (max-width: 640px) {
       .page { padding: 14px; }
-      .icon-btn { width: 76px; height: 76px; font-size: 30px; border-radius: 22px; }
+      .icon-btn { width: 76px; height: 76px; font-size: 28px; border-radius: 22px; padding-top: 12px; }
+      .icon-btn::after { bottom: 8px; font-size: 11px; }
       .teacher-text { font-size: 28px; }
     }
   </style>
@@ -85,9 +119,9 @@
       <div class="small">程序开发：鄢清华 重庆工商大学</div>
 
       <div class="control-bar">
-        <button id="startBtn" class="icon-btn play-btn" title="开始上课" aria-label="开始上课" disabled>▶</button>
-        <button id="pauseBtn" class="icon-btn pause-btn" title="暂停" aria-label="暂停" disabled>⏸</button>
-        <button id="stopBtn" class="icon-btn stop-btn" title="结束课程" aria-label="结束课程" disabled>⏹</button>
+        <button id="startBtn" class="icon-btn play-btn" title="开始上课" aria-label="开始上课" data-label="开始" disabled>▶</button>
+        <button id="pauseBtn" class="icon-btn pause-btn" title="暂停" aria-label="暂停" data-label="暂停" disabled>⏸</button>
+        <button id="stopBtn" class="icon-btn stop-btn" title="结束课程" aria-label="结束课程" data-label="结束" disabled>⏹</button>
         <button id="loginTriggerBtn" class="login-trigger-btn" title="教师登录" aria-label="教师登录">登录</button>
         <button id="newSessionBtn" class="new-session-btn">新课程</button>
         <span id="authBadge" class="auth-badge">未登录</span>
@@ -238,6 +272,8 @@ function updateAuthUI() {
   const locked = !isTeacherAuthed;
   authBadge.textContent = locked ? '未登录' : '已登录';
   authBadge.classList.toggle('ok', !locked);
+  loginTriggerBtn.classList.toggle('logged-in', !locked);
+  loginTriggerBtn.textContent = locked ? '登录' : '已登录';
   setButtonLockState(startBtn, locked || !currentSession || isTeaching);
   setButtonLockState(pauseBtn, locked || !isTeaching);
   setButtonLockState(stopBtn, locked || !isTeaching);
@@ -316,11 +352,49 @@ function getRoundState(roundId) {
       lastTranslateAt: 0,
       finalSent: false,
       inFlight: false,
-      pendingText: '',
-      pendingFinal: false
+      pendingSegment: null,
+      committedText: '',
+      lastSegmentAt: 0,
+      segmentSeq: 0
     });
   }
   return roundTranslationState.get(roundId);
+}
+
+function findLastBoundaryIndex(text, pattern, minIndex = 0) {
+  let found = -1;
+  for (const match of text.matchAll(pattern)) {
+    const idx = match.index ?? -1;
+    if (idx >= minIndex) found = idx;
+  }
+  return found;
+}
+function extractSegmentForBroadcast(cleanText, state, isFinal) {
+  if (!cleanText) return null;
+  let committed = state.committedText || '';
+  if (committed && !cleanText.startsWith(committed)) {
+    committed = '';
+    state.committedText = '';
+  }
+  const remainder = cleanText.slice(committed.length);
+  if (!remainder || !remainder.trim()) return null;
+  if (isFinal) return { rawSegment: remainder, segmentText: remainder.trim(), finalChunk: true };
+  const strongIdx = findLastBoundaryIndex(remainder, /[。！？!?；;]/g, 5);
+  if (strongIdx >= 0) {
+    const raw = remainder.slice(0, strongIdx + 1);
+    return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
+  }
+  const idleMs = Date.now() - (state.lastSegmentAt || 0);
+  const forceCut = remainder.trim().length >= 30 || idleMs >= 2600;
+  if (!forceCut) return null;
+  const mediumIdx = findLastBoundaryIndex(remainder, /[，,、：:]/g, 8);
+  if (mediumIdx >= 0) {
+    const raw = remainder.slice(0, mediumIdx + 1);
+    return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
+  }
+  if (remainder.trim().length < 36) return null;
+  const hardRaw = remainder.slice(0, 24);
+  return { rawSegment: hardRaw, segmentText: hardRaw.trim(), finalChunk: false };
 }
 function shouldTriggerPreTranslate(cleanText, state) {
   if (!cleanText || cleanText.length < PRE_TRANSLATE_MIN_TEXT) return false;
@@ -440,34 +514,35 @@ async function translateSubtitleByFunction(sourceText, isFinal, targetLanguages)
   if (!result || !result.ok || !result.data) throw new Error('翻译函数返回异常: ' + JSON.stringify(result));
   return result.data;
 }
-async function broadcastTranslatedSubtitle(data, roundId) {
+async function broadcastTranslatedSubtitle(data, roundId, forceEnded = true) {
   if (!trtc || !data || isPaused) return;
-  const message = { cmd: 'translated_subtitle', from: teacherUserId || 'teacher', roundId: String(roundId || data.seq || Date.now()), source_text: data.sourceText || '', translations: data.translations || {}, end: !!data.isFinal, ts: Date.now() };
+  const message = { cmd: 'translated_subtitle', from: teacherUserId || 'teacher', roundId: String(roundId || data.seq || Date.now()), source_text: data.sourceText || '', translations: data.translations || {}, end: !!forceEnded, ts: Date.now() };
   const encoded = new TextEncoder().encode(JSON.stringify(message));
   await trtc.sendCustomMessage({ cmdId: 1, data: encoded.buffer, reliable: true, ordered: true });
 }
-async function runTranslationForRound(roundId, cleanText, isFinal) {
+async function runTranslationForRound(roundId, segmentInfo) {
   const state = getRoundState(roundId);
-  if (state.inFlight) { state.pendingText = cleanText; state.pendingFinal = state.pendingFinal || !!isFinal; return; }
+  if (!segmentInfo || !segmentInfo.segmentText) return;
+  if (state.inFlight) { state.pendingSegment = segmentInfo; return; }
   state.inFlight = true;
   try {
-    const translated = await translateSubtitleByFunction(cleanText, isFinal, getEffectiveTargetLanguages());
-    currentSubtitleState = { roundId: String(roundId), sourceText: translated.sourceText || cleanText, translations: translated.translations || {}, ended: !!isFinal };
-    renderCurrentTeacherSubtitle();
-    if (isFinal) pushTeacherHistorySnapshot(currentSubtitleState);
-    await broadcastTranslatedSubtitle(translated, roundId);
-    state.lastTranslatedText = cleanText;
+    const translated = await translateSubtitleByFunction(segmentInfo.segmentText, true, getEffectiveTargetLanguages());
+    await broadcastTranslatedSubtitle(translated, roundId + '_seg_' + (++state.segmentSeq), true);
+    pushTeacherHistorySnapshot({ sourceText: translated.sourceText || segmentInfo.segmentText });
+    state.committedText = (state.committedText || '') + (segmentInfo.rawSegment || segmentInfo.segmentText);
+    state.lastTranslatedText = segmentInfo.segmentText;
     state.lastTranslateAt = Date.now();
-    if (isFinal) state.finalSent = true;
+    state.lastSegmentAt = Date.now();
+    if (segmentInfo.finalChunk) state.finalSent = true;
   } catch (err) {
     console.error('translate function failed:', err);
     statusDiv.textContent = '翻译函数失败：' + (err && err.message ? err.message : String(err));
   } finally {
     state.inFlight = false;
-    if (state.pendingText) {
-      const nextText = state.pendingText; const nextFinal = state.pendingFinal;
-      state.pendingText = ''; state.pendingFinal = false;
-      if (!state.finalSent || nextFinal) await runTranslationForRound(roundId, nextText, nextFinal);
+    if (state.pendingSegment) {
+      const nextSegment = state.pendingSegment;
+      state.pendingSegment = null;
+      if (!state.finalSent || nextSegment.finalChunk) await runTranslationForRound(roundId, nextSegment);
     }
   }
 }
@@ -477,13 +552,10 @@ function maybeTranslateSubtitle(roundId, sourceText, isFinal) {
   if (!cleanText) return;
   const state = getRoundState(roundId);
   if (state.finalSent && !isFinal) return;
-  if (isFinal) {
-    if (state.finalSent && state.lastTranslatedText === cleanText) return;
-    runTranslationForRound(roundId, cleanText, true); return;
-  }
-  if (cleanText === state.lastTranslatedText) return;
-  if (!shouldTriggerPreTranslate(cleanText, state)) return;
-  runTranslationForRound(roundId, cleanText, false);
+  const segmentInfo = extractSegmentForBroadcast(cleanText, state, isFinal);
+  if (!segmentInfo || !segmentInfo.segmentText) return;
+  if (segmentInfo.segmentText === state.lastTranslatedText && !segmentInfo.finalChunk) return;
+  runTranslationForRound(roundId, segmentInfo);
 }
 async function startClass() {
   if (isTeaching) return;
@@ -534,6 +606,7 @@ function pauseClass() {
   if (!isTeaching) return;
   isPaused = !isPaused;
   pauseBtn.textContent = isPaused ? '⏯' : '⏸';
+  pauseBtn.dataset.label = isPaused ? '继续' : '暂停';
   pauseBtn.title = isPaused ? '继续' : '暂停';
   pauseBtn.setAttribute('aria-label', isPaused ? '继续' : '暂停');
   statusDiv.textContent = isPaused ? '⏸ 已暂停：老师仍在房间中，但暂不广播新的翻译字幕' : '▶ 已继续：正在接收并广播字幕';
@@ -549,7 +622,7 @@ async function endClass() {
     subtitleRoundStore = new Map(); studentLanguageMap.clear(); roundTranslationState.clear(); renderLanguageSummary();
     startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
     updateAuthUI();
-    pauseBtn.textContent = '⏸'; pauseBtn.title = '暂停';
+    pauseBtn.textContent = '⏸'; pauseBtn.dataset.label = '暂停'; pauseBtn.title = '暂停';
     statusDiv.textContent = '⏹ 课程已结束';
   }
 }

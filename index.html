@@ -788,6 +788,76 @@
         height: 44px;
       }
     }
+
+    @media (orientation: landscape) and (max-width: 950px) {
+      html, body { min-height: 100dvh; }
+      .page {
+        min-height: 100dvh;
+        padding: calc(4px + var(--safe-top)) 6px calc(10px + var(--safe-bottom));
+      }
+      .wrap { gap: 6px; }
+      .status-summary {
+        padding: 6px 10px;
+        gap: 8px;
+      }
+      .status-main-zh { font-size: 15px; }
+      .status-main-en { font-size: 10px; }
+      .status-meta { gap: 6px; }
+      .status-meta-item {
+        min-width: 136px;
+        padding: 6px 9px;
+        border-radius: 14px;
+      }
+      .status-meta-label { font-size: 10px; }
+      .status-meta-value { font-size: 13px; }
+      .content-grid {
+        grid-template-columns: minmax(0, 1.52fr) minmax(220px, 0.98fr);
+        gap: 8px;
+      }
+      .hero-card {
+        min-height: calc(100dvh - 88px);
+        padding: 8px;
+        gap: 8px;
+      }
+      .hero-panel {
+        padding: 9px 12px 10px;
+        border-radius: 18px;
+      }
+      .hero-label-zh { font-size: 11px; }
+      .hero-label-en { font-size: 9px; }
+      .hero-source { font-size: clamp(24px, 3.4vw, 34px); line-height: 1.08; }
+      .hero-translation { font-size: clamp(28px, 3.9vw, 40px); line-height: 1.04; }
+      .history-card {
+        min-height: calc(100dvh - 88px);
+        max-height: calc(100dvh - 88px);
+        padding: 8px 10px 8px;
+      }
+      .history-header {
+        margin-bottom: 4px;
+        gap: 6px;
+      }
+      .history-title-zh { font-size: 15px; }
+      .history-title-en,
+      .history-note { font-size: 9px; }
+      .history-list { padding-right: 1px; }
+      .history-item { padding: 5px 0; }
+      .history-time { margin-top: 2px; font-size: 9px; }
+      .fab {
+        top: calc(4px + var(--safe-top));
+        bottom: auto;
+        right: 6px;
+        min-width: 50px;
+        height: 38px;
+        padding: 4px 8px;
+        border-radius: 14px;
+      }
+      .fab-zh { font-size: 11px; }
+      .fab-en { font-size: 8px; }
+      .settings-sheet {
+        width: min(56vw, 360px);
+      }
+    }
+
   </style>
 </head>
 <body>
