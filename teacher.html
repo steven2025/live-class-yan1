@@ -242,6 +242,7 @@
 <script>
 const GET_ASR_AUTH_URL = 'https://1311686407-0zanrhkwaj.ap-guangzhou.tencentscf.com';
 const CLASSROOM_SUBMIT_URL = 'https://1311686407-2ff4v8e2pd.ap-guangzhou.tencentscf.com';
+const CLASSROOM_STATE_URL = 'https://1311686407-fezy8495qt.ap-guangzhou.tencentscf.com';
 const TRANSLATE_URL = 'https://1311686407-7ccgq1nhg9.ap-guangzhou.tencentscf.com';
 const AUTH_STORAGE_KEY = 'teacher_invite_authed';
 const AUTH_CODE_STORAGE_KEY = 'teacher_invite_code';
@@ -281,6 +282,9 @@ let lastPartialText = '';
 let currentAsrRoundId = '';
 let silenceTimer = null;
 let roundTranslationState = new Map();
+let requestedStudentLangs = new Set();
+let statePollTimer = null;
+let lastStateSignature = '';
 
 const sourceTextDiv = document.getElementById('sourceText');
 const historyDiv = document.getElementById('history');
@@ -342,7 +346,8 @@ function getLanguageLabel(lang) {
   return LANGUAGE_OPTIONS.find(item => item.value === lang)?.label || lang;
 }
 function getEffectiveTargetLanguages() {
-  return ['en'];
+  const langs = Array.from(requestedStudentLangs).filter(lang => SUPPORTED_TRANSLATION_LANGS.includes(lang));
+  return langs.length ? langs : ['en'];
 }
 function getRoundState(roundId) {
   if (!roundTranslationState.has(roundId)) {
@@ -429,7 +434,10 @@ async function verifyTeacherInvite() {
 
 function renderLanguageSummary() {
   const activeLabels = getEffectiveTargetLanguages().map(getLanguageLabel);
-  langSummary.textContent = '当前自动生成语种：' + activeLabels.join('、');
+  const hasStudentReq = Array.from(requestedStudentLangs).length > 0;
+  langSummary.textContent = hasStudentReq
+    ? ('当前按学生请求翻译语种：' + activeLabels.join('、'))
+    : ('当前默认翻译语种：' + activeLabels.join('、') + '（尚未收到学生端语种请求）');
 }
 function estimateAddedChars(currentText, lastText) {
   if (!lastText) return currentText.length;
@@ -486,6 +494,60 @@ function renderHistory() {
   historyDiv.innerHTML = localHistory.map(item => `<div class="history-item"><div>${escapeHtml(item.source)}</div><div class="small">${escapeHtml(item.timestamp)}</div></div>`).join('');
 }
 function generateRoomId() { return Math.floor(10000 + Math.random() * 90000).toString(); }
+
+function normalizeRequestedLangsFromStatePayload(payload) {
+  const data = (payload && payload.data) ? payload.data : payload || {};
+  const candidates = []
+    .concat(data.requestedLangs || [])
+    .concat(data.requested_langs || [])
+    .concat(data.studentLangs || [])
+    .concat(data.student_langs || [])
+    .concat(data.onlineLanguages || [])
+    .concat(data.online_languages || []);
+  const normalized = Array.from(new Set(candidates.map(v => String(v || '').trim()).filter(v => SUPPORTED_TRANSLATION_LANGS.includes(v))));
+  return normalized;
+}
+async function fetchRequestedLanguagesFromState() {
+  if (!currentSession) return [];
+  const url = `${CLASSROOM_STATE_URL}?roomId=${encodeURIComponent(String(currentSession))}`;
+  const response = await fetch(url, { method: 'GET', mode: 'cors' });
+  const rawText = await response.text();
+  let data = {};
+  try { data = rawText ? JSON.parse(rawText) : {}; } catch { return []; }
+  if (!response.ok) return [];
+  return normalizeRequestedLangsFromStatePayload(data);
+}
+async function refreshRequestedLanguages() {
+  try {
+    const langs = await fetchRequestedLanguagesFromState();
+    const next = new Set(langs);
+    const signature = JSON.stringify(Array.from(next).sort());
+    if (signature !== lastStateSignature) {
+      requestedStudentLangs = next;
+      lastStateSignature = signature;
+      renderLanguageSummary();
+      if (!isTeaching) {
+        statusDiv.textContent = requestedStudentLangs.size
+          ? ('已收到学生端语种请求：' + Array.from(requestedStudentLangs).map(getLanguageLabel).join('、'))
+          : '尚未收到学生端语种请求，默认仅翻译 English';
+      }
+    }
+  } catch (err) {
+    console.warn('refreshRequestedLanguages failed:', err);
+  }
+}
+function startStatePolling() {
+  stopStatePolling();
+  refreshRequestedLanguages();
+  statePollTimer = setInterval(refreshRequestedLanguages, 3000);
+}
+function stopStatePolling() {
+  if (statePollTimer) {
+    clearInterval(statePollTimer);
+    statePollTimer = null;
+  }
+}
+
 async function postJson(url, params) {
   const response = await fetch(url, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
   const rawText = await response.text();
@@ -509,14 +571,18 @@ async function translateSubtitleByFunction(sourceText, isFinal, targetLanguages)
   return result.data;
 }
 async function submitSubtitleState(data) {
+  console.log('CLASSROOM_SUBMIT_REQUEST', data);
   await postJson(CLASSROOM_SUBMIT_URL, {
     roomId: String(currentSession),
     teacherCode,
     sourceText: data.sourceText || '',
-    translations: data.translations || {}
+    translations: data.translations || {},
+    requestedLangs: getEffectiveTargetLanguages()
   });
+  console.log('CLASSROOM_SUBMIT_DONE');
 }
 async function runTranslationForRound(roundId, segmentInfo) {
+  console.log('RUN_TRANSLATION_FOR_ROUND', { roundId, segmentInfo, langs: getEffectiveTargetLanguages() });
   const state = getRoundState(roundId);
   if (!segmentInfo || !segmentInfo.segmentText) return;
   if (state.inFlight) { state.pendingSegment = segmentInfo; return; }
@@ -542,12 +608,14 @@ async function runTranslationForRound(roundId, segmentInfo) {
   }
 }
 function maybeTranslateSubtitle(roundId, sourceText, isFinal) {
+  console.log('MAYBE_TRANSLATE', { roundId, sourceText, isFinal, isPaused, langs: getEffectiveTargetLanguages() });
   if (isPaused) return;
   const cleanText = (sourceText || '').trim();
   if (!cleanText) return;
   const state = getRoundState(roundId);
   if (state.finalSent && !isFinal) return;
   const segmentInfo = extractSegmentForBroadcast(cleanText, state, isFinal);
+  console.log('SEGMENT_INFO', segmentInfo);
   if (!segmentInfo || !segmentInfo.segmentText) return;
   if (segmentInfo.segmentText === state.lastTranslatedText && !segmentInfo.finalChunk) return;
   runTranslationForRound(roundId, segmentInfo);
@@ -615,20 +683,23 @@ async function connectAsrWebSocket(roomId) {
     const ws = new WebSocket(authData.url);
     ws.binaryType = 'arraybuffer';
     let opened = false;
-    ws.onopen = () => { opened = true; resolve(ws); };
-    ws.onerror = () => { if (!opened) reject(new Error('ASR WebSocket 连接失败')); };
-    ws.onclose = (evt) => { if (isTeaching && !isPaused) statusDiv.textContent = 'ASR 连接已关闭：' + (evt.reason || '连接结束'); };
-    ws.onmessage = (event) => handleAsrMessage(event.data);
+    ws.onopen = () => { console.log('ASR_WS_OPEN'); opened = true; resolve(ws); };
+    ws.onerror = (evt) => { console.error('ASR_WS_ERROR', evt); if (!opened) reject(new Error('ASR WebSocket 连接失败')); };
+    ws.onclose = (evt) => { console.error('ASR_WS_CLOSE', { code: evt.code, reason: evt.reason, wasClean: evt.wasClean }); if (isTeaching && !isPaused) statusDiv.textContent = 'ASR 连接已关闭：' + (evt.reason || '连接结束'); };
+    ws.onmessage = (event) => { console.log('ASR_WS_MESSAGE_RAW', event.data); handleAsrMessage(event.data); };
   });
 }
 function handleAsrMessage(raw) {
+  console.log('HANDLE_ASR_MESSAGE_IN', raw);
   let msg = null;
   try { msg = typeof raw === 'string' ? JSON.parse(raw) : JSON.parse(new TextDecoder().decode(raw)); } catch { return; }
+  console.log('HANDLE_ASR_MESSAGE_JSON', msg);
   const code = Number(msg.code ?? 0);
   if (code !== 0) { statusDiv.textContent = 'ASR 返回错误：' + (msg.message || JSON.stringify(msg)); return; }
   const result = msg.result || {};
   const text = String(result.voice_text_str || '').trim();
   const sliceType = Number(result.slice_type);
+  console.log('ASR_TEXT', text, 'SLICE_TYPE', sliceType);
   if (!text) return;
   if (!currentAsrRoundId || sliceType === 0) currentAsrRoundId = result.voice_id || ('round_' + Date.now());
   lastPartialText = text;
@@ -688,6 +759,7 @@ async function closeAsrSocket() {
 }
 async function endClass(silent = false) {
   try { await cleanupAudio(); await closeAsrSocket(); } finally {
+    stopStatePolling();
     isTeaching = false; isPaused = false; lastPartialText = ''; currentAsrRoundId = ''; roundTranslationState = new Map();
     startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true; updateAuthUI();
     pauseBtn.textContent = '⏸'; pauseBtn.dataset.label = '暂停'; pauseBtn.title = '暂停';
@@ -710,12 +782,14 @@ async function createNewSession() {
   const newRoomId = generateRoomId();
   if (isTeaching) await endClass();
   currentSession = newRoomId; localStorage.setItem('teacher_session', currentSession);
+  requestedStudentLangs = new Set();
+  lastStateSignature = '';
   currentSessionCodeSpan.textContent = currentSession;
   const studentUrl = buildStudentUrl(currentSession); studentLinkSpan.textContent = studentUrl;
   sessionInfoDiv.style.display = 'block'; generateQRCodeWithSession(currentSession);
   subtitleSeq = 0; roundTranslationState = new Map(); renderLanguageSummary();
   sourceTextDiv.textContent = '等待语音输入...'; startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
-  updateAuthUI(); statusDiv.textContent = '新课程已创建，课程码：' + currentSession;
+  updateAuthUI(); startStatePolling(); statusDiv.textContent = '新课程已创建，课程码：' + currentSession + '；默认仅翻译 English，收到学生端语种请求后会自动调整';
 }
 function generateQRCodeWithSession(sessionCode) {
   const studentUrl = buildStudentUrl(sessionCode);

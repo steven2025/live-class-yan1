@@ -1055,6 +1055,7 @@
 <script>
 const params = new URLSearchParams(location.search);
 const CLASSROOM_STATE_URL = 'https://1311686407-fezy8495qt.ap-guangzhou.tencentscf.com';
+const STUDENT_LANG_UPDATE_URL = 'https://1311686407-edowcwqhkp.ap-guangzhou.tencentscf.com';
 const TRANSLATE_URL = 'https://1311686407-7ccgq1nhg9.ap-guangzhou.tencentscf.com';
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
@@ -1087,6 +1088,25 @@ async function postJson(url, payload) {
   if (data && data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
   return data || {};
 }
+
+async function reportStudentLanguage(reason = 'update') {
+  if (!roomId || !selectedTargetLang) return false;
+  if (!STUDENT_LANG_UPDATE_URL || STUDENT_LANG_UPDATE_URL.includes('https://1311686407-edowcwqhkp.ap-guangzhou.tencentscf.com')) {
+    console.warn('STUDENT_LANG_UPDATE_URL 未配置，无法把学生语种请求传回教师端');
+    return false;
+  }
+  const deviceId = localStorage.getItem('student_device_id') || ('stu_' + Math.random().toString(36).slice(2) + Date.now());
+  localStorage.setItem('student_device_id', deviceId);
+  const result = await postJson(STUDENT_LANG_UPDATE_URL, {
+    roomId: String(roomId),
+    studentId: deviceId,
+    lang: selectedTargetLang,
+    reason,
+    ts: Date.now()
+  });
+  return !!(result && (result.ok === undefined || result.ok));
+}
+
 let roomId = getRoomCodeFromUrl();
 let currentSubtitle = { source_text: '', translations: {} };
 let historyList = [];
@@ -1237,7 +1257,12 @@ async function loadState() {
     setConnectionStatus('连接失败', String(err?.message || err), 'error');
   }
 }
-function startPolling() { clearInterval(currentPollTimer); loadState(); currentPollTimer = setInterval(loadState, 800); }
+function startPolling() {
+  clearInterval(currentPollTimer);
+  loadState();
+  reportStudentLanguage('join').catch(err => console.warn('reportStudentLanguage(join) failed', err));
+  currentPollTimer = setInterval(loadState, 800);
+}
 function reconnectCurrentRoom() { if (!roomId) return; startPolling(); }
 confirmSessionBtn.addEventListener('click', () => {
   const inputCode = normalizeRoomCode(roomCodeInput.value);
@@ -1255,7 +1280,19 @@ langGrid.addEventListener('click', event => {
   const button = event.target.closest('.lang-option'); if (!button) return; pendingTargetLang = button.dataset.lang || selectedTargetLang; renderLangChooser();
 });
 langConfirmBtn.addEventListener('click', async () => {
-  selectedTargetLang = pendingTargetLang; localStorage.setItem('student_lang', selectedTargetLang); updateLanguageStatus(); await renderCurrentSubtitle(); await renderHistory(); setConnectionStatus('已切换语种', getLangLabel(selectedTargetLang), 'connected'); closeSettingsSheet();
+  selectedTargetLang = pendingTargetLang;
+  localStorage.setItem('student_lang', selectedTargetLang);
+  updateLanguageStatus();
+  await renderCurrentSubtitle();
+  await renderHistory();
+  try {
+    const ok = await reportStudentLanguage('confirm');
+    setConnectionStatus('已切换语种', ok ? ('已通知教师端 ' + getLangLabel(selectedTargetLang)) : getLangLabel(selectedTargetLang), 'connected');
+  } catch (err) {
+    console.warn('reportStudentLanguage(confirm) failed', err);
+    setConnectionStatus('语种已切换', '教师端同步失败', 'pending');
+  }
+  closeSettingsSheet();
 });
 audioToggleBtn.addEventListener('click', () => { alert('当前版本已移除教师音频，仅保留实时字幕。'); });
 copyLinkBtn.addEventListener('click', async () => {
