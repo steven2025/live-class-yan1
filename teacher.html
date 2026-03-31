@@ -229,7 +229,7 @@
 <div id="authOverlay" class="auth-overlay" aria-hidden="true">
   <div class="auth-modal">
     <h2 class="auth-title">教师登录</h2>
-    <div class="auth-desc">请输入邀请码。验证通过后将立即返回主页面，并解除教师端操作限制。</div>
+    <div class="auth-desc">请输入邀请码。系统将通过云函数进行校验，验证通过后立即返回主页面并解除教师端操作限制。</div>
     <input id="authInput" class="auth-input" type="password" inputmode="numeric" placeholder="请输入邀请码">
     <div id="authError" class="auth-error"></div>
     <div class="auth-actions">
@@ -243,7 +243,6 @@
 const GET_ASR_AUTH_URL = 'https://1311686407-0zanrhkwaj.ap-guangzhou.tencentscf.com';
 const CLASSROOM_SUBMIT_URL = 'https://1311686407-2ff4v8e2pd.ap-guangzhou.tencentscf.com';
 const TRANSLATE_URL = 'https://1311686407-7ccgq1nhg9.ap-guangzhou.tencentscf.com';
-const TEACHER_PASSWORDS_URL = 'https://live-class-yan1-1311686407.cos.ap-guangzhou.myqcloud.com/jsmima.txt';
 const AUTH_STORAGE_KEY = 'teacher_invite_authed';
 const AUTH_CODE_STORAGE_KEY = 'teacher_invite_code';
 const SUPPORTED_TRANSLATION_LANGS = ['en','th','vi','id','ms','fr','ja','ru','ko','de','es','pt','zh','it','ar'];
@@ -371,32 +370,25 @@ function closeAuthModal() {
   authOverlay.classList.remove('open');
   authOverlay.setAttribute('aria-hidden', 'true');
 }
-async function fetchPasswordList() {
-  const response = await fetch(TEACHER_PASSWORDS_URL, { cache: 'no-store' });
-  if (!response.ok) throw new Error('无法读取邀请码文件');
-  const text = await response.text();
-  return text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-}
 async function verifyTeacherInvite() {
   const input = String(authInput.value || '').trim();
   if (!input) { authError.textContent = '请输入邀请码'; return; }
   authError.textContent = '正在验证...';
   authConfirmBtn.disabled = true;
   try {
-    const passwords = await fetchPasswordList();
-    if (passwords.includes(input)) {
-      isTeacherAuthed = true;
-      teacherCode = input;
-      sessionStorage.setItem(AUTH_STORAGE_KEY, '1');
-      sessionStorage.setItem(AUTH_CODE_STORAGE_KEY, input);
-      closeAuthModal();
-      updateAuthUI();
-      statusDiv.textContent = '教师端登录成功';
-      return;
-    }
-    authError.textContent = '邀请码错误，请重新输入';
+    const probeRoomId = currentSession || '100000';
+    await postJson(GET_ASR_AUTH_URL, { roomId: String(probeRoomId), teacherCode: input });
+    isTeacherAuthed = true;
+    teacherCode = input;
+    sessionStorage.setItem(AUTH_STORAGE_KEY, '1');
+    sessionStorage.setItem(AUTH_CODE_STORAGE_KEY, input);
+    closeAuthModal();
+    updateAuthUI();
+    statusDiv.textContent = '教师端登录成功';
+    return;
   } catch (err) {
-    authError.textContent = '验证失败：' + (err?.message || err);
+    const msg = String(err?.message || err || '验证失败');
+    authError.textContent = /403|邀请码|无效/.test(msg) ? '邀请码错误，请重新输入' : ('验证失败：' + msg);
   } finally {
     authConfirmBtn.disabled = false;
   }
@@ -553,7 +545,17 @@ function floatTo16BitPCM(float32Array) {
   return new Uint8Array(out.buffer);
 }
 async function setupAudioAndStream() {
-  mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  try {
+    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  } catch (err) {
+    if (err && err.name === 'NotFoundError') {
+      throw new Error('未找到可用麦克风，请检查系统是否已连接并启用麦克风');
+    }
+    if (err && err.name === 'NotAllowedError') {
+      throw new Error('浏览器未获得麦克风权限，请允许访问麦克风后重试');
+    }
+    throw err;
+  }
   const Ctx = window.AudioContext || window.webkitAudioContext;
   audioContext = new Ctx({ sampleRate: 16000 });
   await audioContext.resume();
