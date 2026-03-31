@@ -885,10 +885,6 @@
             <div class="status-meta-label">当前语种 Current Language</div>
             <div id="statusLanguage" class="status-meta-value">English</div>
           </div>
-          <div class="status-meta-item">
-            <div class="status-meta-label">教师音频 Teacher Audio</div>
-            <div id="statusAudio" class="status-meta-value">关闭 Off</div>
-          </div>
         </div>
       </div>
 
@@ -952,18 +948,6 @@
           <button id="langConfirmBtn" class="btn btn-accent">
             <span class="btn-zh">确认语种</span>
             <span class="btn-en">Confirm</span>
-          </button>
-        </div>
-      </section>
-
-      <section class="sheet-section">
-        <div class="section-title-zh">教师音频</div>
-        <div class="section-title-en">Teacher Audio</div>
-        <div class="section-tip">默认关闭。点按后才播放教师远端音频，更适合手机和平板场景。</div>
-        <div class="button-grid single">
-          <button id="audioToggleBtn" class="btn btn-soft">
-            <span class="btn-zh">开启教师声音</span>
-            <span class="btn-en">Enable Audio</span>
           </button>
         </div>
       </section>
@@ -1048,8 +1032,6 @@
       </div>
     </div>
   </div>
-
-  <div id="hiddenAudioContainer" class="hidden-audio"></div>
 </div>
 
 <script>
@@ -1128,14 +1110,12 @@ const historyDiv = document.getElementById('history');
 const statusMainZh = document.getElementById('statusMainZh');
 const statusMainEn = document.getElementById('statusMainEn');
 const statusLanguage = document.getElementById('statusLanguage');
-const statusAudio = document.getElementById('statusAudio');
 const toolbarToggle = document.getElementById('toolbarToggle');
 const toolbarHideBtn = document.getElementById('toolbarHideBtn');
 const settingsBackdrop = document.getElementById('settingsBackdrop');
 const settingsSheet = document.getElementById('settingsSheet');
 const langGrid = document.getElementById('langGrid');
 const langConfirmBtn = document.getElementById('langConfirmBtn');
-const audioToggleBtn = document.getElementById('audioToggleBtn');
 const openReviewBtn = document.getElementById('openReviewBtn');
 const copyLinkBtn = document.getElementById('copyLinkBtn');
 const reconnectBtn = document.getElementById('reconnectBtn');
@@ -1155,11 +1135,6 @@ function setConnectionStatus(zh, en, kind = 'pending') {
   statusMainZh.classList.add(kind);
 }
 function updateLanguageStatus() { statusLanguage.textContent = getLangLabel(selectedTargetLang); }
-function updateAudioStatus() {
-  statusAudio.textContent = '无 None';
-  audioToggleBtn.className = 'btn btn-soft';
-  audioToggleBtn.innerHTML = '<span class="btn-zh">教师音频不可用</span><span class="btn-en">Audio Unavailable</span>';
-}
 function renderLangChooser() {
   langGrid.innerHTML = LANGUAGE_OPTIONS.map(item => {
     const selected = item.value === pendingTargetLang ? 'selected' : '';
@@ -1316,7 +1291,6 @@ langConfirmBtn.addEventListener('click', async () => {
   }
   closeSettingsSheet();
 });
-audioToggleBtn.addEventListener('click', () => { alert('当前版本已移除教师音频，仅保留实时字幕。'); });
 copyLinkBtn.addEventListener('click', async () => {
   try {
     const url = new URL(location.href); const code = normalizeRoomCode(roomId || roomCodeInput.value); if (code) { url.search = ''; url.searchParams.set('room', code); url.searchParams.set('code', code); }
@@ -1329,7 +1303,7 @@ modeStudent.addEventListener('click', () => setReviewMode('student'));
 modeDual.addEventListener('click', () => setReviewMode('dual'));
 generateBtn.addEventListener('click', () => { reviewText = buildReviewText(); previewContent.textContent = reviewText; downloadBtn.disabled = !reviewText; });
 downloadBtn.addEventListener('click', downloadReview);
-renderLangChooser(); updateLanguageStatus(); updateAudioStatus(); setReviewMode('teacher'); sourceDiv.textContent = '等待字幕...'; nativeDiv.textContent = '正在等待翻译...';
+renderLangChooser(); updateLanguageStatus(); setReviewMode('teacher'); sourceDiv.textContent = '等待字幕...'; nativeDiv.textContent = '正在等待翻译...';
 if (!roomId) { sessionInputArea.classList.remove('hidden'); mainContent.style.display = 'none'; } else { roomCodeInput.value = roomId; sessionInputArea.classList.add('hidden'); mainContent.style.display = 'block'; startPolling(); }
 </script>
 
