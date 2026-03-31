@@ -356,6 +356,7 @@ function getRoundState(roundId) {
     roundTranslationState.set(roundId, {
       lastTranslatedText: '',
       finalSent: false,
+      interimSent: false,
       inFlight: false,
       pendingSegment: null,
       committedText: '',
@@ -602,7 +603,11 @@ async function runTranslationForRound(roundId, segmentInfo) {
     pushTeacherHistorySnapshot({ sourceText: translated.sourceText || segmentInfo.segmentText });
     state.committedText = (state.committedText || '') + (segmentInfo.rawSegment || segmentInfo.segmentText);
     state.lastTranslatedText = segmentInfo.segmentText;
-    if (segmentInfo.finalChunk) state.finalSent = true;
+    if (segmentInfo.finalChunk) {
+      state.finalSent = true;
+    } else {
+      state.interimSent = true;
+    }
     if (!isPaused) statusDiv.textContent = '▶ 上课中... 正在识别并提交字幕';
   } catch (err) {
     console.error('translate/submit failed:', err);
@@ -630,6 +635,7 @@ function maybeTranslateSubtitle(roundId, sourceText, isFinal) {
 
   const now = Date.now();
   if (!isFinal) {
+    if (state.interimSent) return;
     if (segmentInfo.segmentText.length < MIN_INTERIM_SEGMENT_CHARS) return;
     const addedChars = estimateAddedChars(segmentInfo.segmentText, state.lastTranslatedText || '');
     const elapsed = now - (state.lastTriggerAt || 0);
