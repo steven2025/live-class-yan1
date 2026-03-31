@@ -342,7 +342,7 @@ function getLanguageLabel(lang) {
   return LANGUAGE_OPTIONS.find(item => item.value === lang)?.label || lang;
 }
 function getEffectiveTargetLanguages() {
-  return SUPPORTED_TRANSLATION_LANGS.slice();
+  return ['en'];
 }
 function getRoundState(roundId) {
   if (!roundTranslationState.has(roundId)) {
