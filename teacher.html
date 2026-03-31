@@ -302,6 +302,39 @@ const authError = document.getElementById('authError');
 const authConfirmBtn = document.getElementById('authConfirmBtn');
 const authCancelBtn = document.getElementById('authCancelBtn');
 
+
+function normalizeErrorMessage(err) {
+  if (!err) return '未知错误';
+  if (err instanceof Error) return err.message || String(err);
+  if (typeof err === 'string') return err;
+  if (typeof err === 'object') {
+    try {
+      if (err.message) return String(err.message);
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+}
+function safeAsync(fn) {
+  return function(...args) {
+    Promise.resolve(fn.apply(this, args)).catch(err => {
+      const msg = normalizeErrorMessage(err);
+      console.error('Unhandled async handler error:', err);
+      statusDiv.textContent = '操作失败：' + msg;
+      if (authError && authOverlay.classList.contains('open')) {
+        authError.textContent = '操作失败：' + msg;
+      }
+    });
+  };
+}
+window.addEventListener('unhandledrejection', event => {
+  const msg = normalizeErrorMessage(event.reason);
+  console.error('Unhandled promise rejection:', event.reason);
+  statusDiv.textContent = '运行异常：' + msg;
+  event.preventDefault();
+});
 function escapeHtml(text) {
   return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -387,7 +420,7 @@ async function verifyTeacherInvite() {
     statusDiv.textContent = '教师端登录成功';
     return;
   } catch (err) {
-    const msg = String(err?.message || err || '验证失败');
+    const msg = normalizeErrorMessage(err || '验证失败');
     authError.textContent = /403|邀请码|无效/.test(msg) ? '邀请码错误，请重新输入' : ('验证失败：' + msg);
   } finally {
     authConfirmBtn.disabled = false;
@@ -696,15 +729,15 @@ function generateQRCodeWithSession(sessionCode) {
     qrContainer.innerHTML = ''; qrContainer.appendChild(canvas); qrDesc.textContent = '手机扫码即可观看字幕';
   } catch (err) { console.error('二维码生成失败', err); qrDesc.textContent = '二维码生成失败，请使用下方链接'; }
 }
-startBtn.addEventListener('click', event => { if (requireAuth(event)) return; startClass(); });
-pauseBtn.addEventListener('click', event => { if (requireAuth(event)) return; pauseClass(); });
-stopBtn.addEventListener('click', event => { if (requireAuth(event)) return; endClass(); });
-newSessionBtn.addEventListener('click', event => { if (requireAuth(event)) return; createNewSession(); });
+startBtn.addEventListener('click', safeAsync(async event => { if (requireAuth(event)) return; await startClass(); }));
+pauseBtn.addEventListener('click', safeAsync(async event => { if (requireAuth(event)) return; await pauseClass(); }));
+stopBtn.addEventListener('click', safeAsync(async event => { if (requireAuth(event)) return; await endClass(); }));
+newSessionBtn.addEventListener('click', safeAsync(async event => { if (requireAuth(event)) return; await createNewSession(); }));
 loginTriggerBtn.addEventListener('click', openAuthModal);
 authCancelBtn.addEventListener('click', closeAuthModal);
 authOverlay.addEventListener('click', event => { if (event.target === authOverlay) closeAuthModal(); });
-authConfirmBtn.addEventListener('click', verifyTeacherInvite);
-authInput.addEventListener('keydown', event => { if (event.key === 'Enter') verifyTeacherInvite(); });
+authConfirmBtn.addEventListener('click', safeAsync(verifyTeacherInvite));
+authInput.addEventListener('keydown', safeAsync(async event => { if (event.key === 'Enter') await verifyTeacherInvite(); }));
 copyStudentLinkBtn.addEventListener('click', () => { const link = studentLinkSpan.textContent; if (!link) return; navigator.clipboard.writeText(link).then(() => alert('链接已复制')).catch(() => alert('复制失败')); });
 renderLanguageSummary();
 renderHistory();
