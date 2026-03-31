@@ -885,6 +885,10 @@
             <div class="status-meta-label">当前语种 Current Language</div>
             <div id="statusLanguage" class="status-meta-value">English</div>
           </div>
+          <div class="status-meta-item">
+            <div class="status-meta-label">教师音频 Teacher Audio</div>
+            <div id="statusAudio" class="status-meta-value">关闭 Off</div>
+          </div>
         </div>
       </div>
 
@@ -948,6 +952,18 @@
           <button id="langConfirmBtn" class="btn btn-accent">
             <span class="btn-zh">确认语种</span>
             <span class="btn-en">Confirm</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="sheet-section">
+        <div class="section-title-zh">教师音频</div>
+        <div class="section-title-en">Teacher Audio</div>
+        <div class="section-tip">默认关闭。点按后才播放教师远端音频，更适合手机和平板场景。</div>
+        <div class="button-grid single">
+          <button id="audioToggleBtn" class="btn btn-soft">
+            <span class="btn-zh">开启教师声音</span>
+            <span class="btn-en">Enable Audio</span>
           </button>
         </div>
       </section>
@@ -1032,6 +1048,8 @@
       </div>
     </div>
   </div>
+
+  <div id="hiddenAudioContainer" class="hidden-audio"></div>
 </div>
 
 <script>
@@ -1074,7 +1092,7 @@ async function postJson(url, payload) {
 
 async function reportStudentLanguage(reason = 'update') {
   if (!roomId || !selectedTargetLang) return false;
-  if (!STUDENT_LANG_UPDATE_URL || !/^https?:\/\//i.test(STUDENT_LANG_UPDATE_URL)) {
+  if (!STUDENT_LANG_UPDATE_URL || STUDENT_LANG_UPDATE_URL.includes('https://1311686407-edowcwqhkp.ap-guangzhou.tencentscf.com')) {
     console.warn('STUDENT_LANG_UPDATE_URL 未配置，无法把学生语种请求传回教师端');
     return false;
   }
@@ -1112,12 +1130,14 @@ const historyDiv = document.getElementById('history');
 const statusMainZh = document.getElementById('statusMainZh');
 const statusMainEn = document.getElementById('statusMainEn');
 const statusLanguage = document.getElementById('statusLanguage');
+const statusAudio = document.getElementById('statusAudio');
 const toolbarToggle = document.getElementById('toolbarToggle');
 const toolbarHideBtn = document.getElementById('toolbarHideBtn');
 const settingsBackdrop = document.getElementById('settingsBackdrop');
 const settingsSheet = document.getElementById('settingsSheet');
 const langGrid = document.getElementById('langGrid');
 const langConfirmBtn = document.getElementById('langConfirmBtn');
+const audioToggleBtn = document.getElementById('audioToggleBtn');
 const openReviewBtn = document.getElementById('openReviewBtn');
 const copyLinkBtn = document.getElementById('copyLinkBtn');
 const reconnectBtn = document.getElementById('reconnectBtn');
@@ -1137,6 +1157,11 @@ function setConnectionStatus(zh, en, kind = 'pending') {
   statusMainZh.classList.add(kind);
 }
 function updateLanguageStatus() { statusLanguage.textContent = getLangLabel(selectedTargetLang); }
+function updateAudioStatus() {
+  statusAudio.textContent = '无 None';
+  audioToggleBtn.className = 'btn btn-soft';
+  audioToggleBtn.innerHTML = '<span class="btn-zh">教师音频不可用</span><span class="btn-en">Audio Unavailable</span>';
+}
 function renderLangChooser() {
   langGrid.innerHTML = LANGUAGE_OPTIONS.map(item => {
     const selected = item.value === pendingTargetLang ? 'selected' : '';
@@ -1197,12 +1222,9 @@ function buildReviewTextFallback() {
     const student = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
     if (reviewMode === 'teacher') return teacher;
     if (reviewMode === 'student') return student || teacher;
-    return `老师: ${teacher}
-学生: ${student || '（暂无翻译）'}`;
+    return `老师: ${teacher}\n学生: ${student || '（暂无翻译）'}`;
   });
-  return lines.join('
-
-');
+  return lines.join('\n\n');
 }
 async function generateClassReview() {
   if (!roomId) throw new Error('缺少 roomId');
@@ -1229,9 +1251,6 @@ async function generateClassReview() {
   if (reviewMode === 'student') return reviewData.reviewText?.student || '';
   return reviewData.reviewText?.dual || '';
 }
-function renderReviewPreviewText(text) {
-  previewContent.textContent = text || '暂无内容。';
-}
 function downloadReview() {
   if (!reviewText) return;
   const blob = new Blob([reviewText], { type: 'text/plain;charset=utf-8' });
@@ -1242,36 +1261,14 @@ function downloadReview() {
   a.click();
   URL.revokeObjectURL(url);
 }
-function openSettingsSheet() {
-  settingsSheet.classList.add('open');
-  settingsBackdrop.classList.add('open');
-  settingsSheet.setAttribute('aria-hidden', 'false');
-}
-function closeSettingsSheet() {
-  const active = document.activeElement;
-  if (active && settingsSheet.contains(active) && typeof active.blur === 'function') active.blur();
-  settingsSheet.classList.remove('open');
-  settingsBackdrop.classList.remove('open');
-  settingsSheet.setAttribute('aria-hidden', 'true');
-  if (toolbarToggle && typeof toolbarToggle.focus === 'function') toolbarToggle.focus();
-}
-function openReviewModal() {
-  reviewModal.classList.add('open');
-  reviewBackdrop.classList.add('open');
-  reviewModal.setAttribute('aria-hidden', 'false');
-}
-function closeReviewModal() {
-  const active = document.activeElement;
-  if (active && reviewModal.contains(active) && typeof active.blur === 'function') active.blur();
-  reviewModal.classList.remove('open');
-  reviewBackdrop.classList.remove('open');
-  reviewModal.setAttribute('aria-hidden', 'true');
-  if (openReviewBtn && typeof openReviewBtn.focus === 'function') openReviewBtn.focus();
-}
+function openSettingsSheet() { settingsSheet.classList.add('open'); settingsBackdrop.classList.add('open'); settingsSheet.setAttribute('aria-hidden', 'false'); }
+function closeSettingsSheet() { settingsSheet.classList.remove('open'); settingsBackdrop.classList.remove('open'); settingsSheet.setAttribute('aria-hidden', 'true'); }
+function openReviewModal() { reviewModal.classList.add('open'); reviewBackdrop.classList.add('open'); reviewModal.setAttribute('aria-hidden', 'false'); }
+function closeReviewModal() { reviewModal.classList.remove('open'); reviewBackdrop.classList.remove('open'); reviewModal.setAttribute('aria-hidden', 'true'); }
 async function loadState() {
   if (!roomId) return;
   try {
-    const response = await fetch(`${CLASSROOM_STATE_URL}?roomId=${encodeURIComponent(roomId)}`, { cache: 'no-store' });
+    const response = await fetch(`${CLASSROOM_STATE_URL}?roomId=${encodeURIComponent(roomId)}`);
     const text = await response.text();
     const data = text ? JSON.parse(text) : {};
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
@@ -1324,6 +1321,7 @@ langConfirmBtn.addEventListener('click', async () => {
   }
   closeSettingsSheet();
 });
+audioToggleBtn.addEventListener('click', () => { alert('当前版本已移除教师音频，仅保留实时字幕。'); });
 copyLinkBtn.addEventListener('click', async () => {
   try {
     const url = new URL(location.href); const code = normalizeRoomCode(roomId || roomCodeInput.value); if (code) { url.search = ''; url.searchParams.set('room', code); url.searchParams.set('code', code); }
@@ -1334,24 +1332,24 @@ reconnectBtn.addEventListener('click', reconnectCurrentRoom);
 modeTeacher.addEventListener('click', () => {
   setReviewMode('teacher');
   if (reviewData && reviewData.reviewText) {
-    reviewText = reviewData.reviewText['teacher'] || '';
-    renderReviewPreviewText(reviewText);
+    reviewText = reviewData.reviewText.teacher || '';
+    previewContent.textContent = reviewText || '暂无内容。';
     downloadBtn.disabled = !reviewText;
   }
 });
 modeStudent.addEventListener('click', () => {
   setReviewMode('student');
   if (reviewData && reviewData.reviewText) {
-    reviewText = reviewData.reviewText['student'] || '';
-    renderReviewPreviewText(reviewText);
+    reviewText = reviewData.reviewText.student || '';
+    previewContent.textContent = reviewText || '暂无内容。';
     downloadBtn.disabled = !reviewText;
   }
 });
 modeDual.addEventListener('click', () => {
   setReviewMode('dual');
   if (reviewData && reviewData.reviewText) {
-    reviewText = reviewData.reviewText['dual'] || '';
-    renderReviewPreviewText(reviewText);
+    reviewText = reviewData.reviewText.dual || '';
+    previewContent.textContent = reviewText || '暂无内容。';
     downloadBtn.disabled = !reviewText;
   }
 });
@@ -1361,17 +1359,15 @@ generateBtn.addEventListener('click', async () => {
   downloadBtn.disabled = true;
   try {
     reviewText = await generateClassReview();
-    if (!reviewText) {
-      reviewText = buildReviewTextFallback();
-    }
-    renderReviewPreviewText(reviewText);
+    if (!reviewText) reviewText = buildReviewTextFallback();
+    previewContent.textContent = reviewText || '暂无内容。';
     downloadBtn.disabled = !reviewText;
     setConnectionStatus('复盘已生成', 'Class review ready', 'connected');
   } catch (err) {
     console.error('generateClassReview failed:', err);
     reviewData = null;
     reviewText = buildReviewTextFallback();
-    renderReviewPreviewText(reviewText || '生成失败，请稍后重试。');
+    previewContent.textContent = reviewText || '生成失败，请稍后重试。';
     downloadBtn.disabled = !reviewText;
     setConnectionStatus('复盘生成失败', String(err?.message || err), 'error');
   } finally {
@@ -1379,7 +1375,7 @@ generateBtn.addEventListener('click', async () => {
   }
 });
 downloadBtn.addEventListener('click', downloadReview);
-renderLangChooser(); updateLanguageStatus(); setReviewMode('teacher'); sourceDiv.textContent = '等待字幕...'; nativeDiv.textContent = '正在等待翻译...';
+renderLangChooser(); updateLanguageStatus(); updateAudioStatus(); setReviewMode('teacher'); sourceDiv.textContent = '等待字幕...'; nativeDiv.textContent = '正在等待翻译...';
 if (!roomId) { sessionInputArea.classList.remove('hidden'); mainContent.style.display = 'none'; } else { roomCodeInput.value = roomId; sessionInputArea.classList.add('hidden'); mainContent.style.display = 'block'; startPolling(); }
 </script>
 
