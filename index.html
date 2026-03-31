@@ -1253,6 +1253,11 @@ function openReviewModal() {
   reviewModal.classList.add('open');
   reviewBackdrop.classList.add('open');
   reviewModal.setAttribute('aria-hidden', 'false');
+  setTimeout(() => {
+    if (closeReviewBtn && typeof closeReviewBtn.focus === 'function') {
+      closeReviewBtn.focus();
+    }
+  }, 0);
 }
 function closeReviewModal() {
   const active = document.activeElement;
@@ -1298,7 +1303,15 @@ toolbarToggle.addEventListener('click', openSettingsSheet);
 toolbarHideBtn.addEventListener('click', closeSettingsSheet);
 settingsBackdrop.addEventListener('click', closeSettingsSheet);
 reviewBackdrop.addEventListener('click', closeReviewModal);
-openReviewBtn.addEventListener('click', () => { closeSettingsSheet(); openReviewModal(); });
+openReviewBtn.addEventListener('click', () => {
+  if (document.activeElement === openReviewBtn && typeof openReviewBtn.blur === 'function') {
+    openReviewBtn.blur();
+  }
+  closeSettingsSheet();
+  setTimeout(() => {
+    openReviewModal();
+  }, 0);
+});
 closeReviewBtn.addEventListener('click', closeReviewModal);
 langGrid.addEventListener('click', event => {
   const button = event.target.closest('.lang-option'); if (!button) return; pendingTargetLang = button.dataset.lang || selectedTargetLang; renderLangChooser();
