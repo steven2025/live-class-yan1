@@ -1091,7 +1091,7 @@ async function postJson(url, payload) {
 
 async function reportStudentLanguage(reason = 'update') {
   if (!roomId || !selectedTargetLang) return false;
-  if (!STUDENT_LANG_UPDATE_URL || STUDENT_LANG_UPDATE_URL.includes('https://1311686407-edowcwqhkp.ap-guangzhou.tencentscf.com')) {
+  if (!STUDENT_LANG_UPDATE_URL || !/^https?:\/\//i.test(STUDENT_LANG_UPDATE_URL)) {
     console.warn('STUDENT_LANG_UPDATE_URL 未配置，无法把学生语种请求传回教师端');
     return false;
   }
@@ -1234,14 +1234,36 @@ function downloadReview() {
   a.click();
   URL.revokeObjectURL(url);
 }
-function openSettingsSheet() { settingsSheet.classList.add('open'); settingsBackdrop.classList.add('open'); settingsSheet.setAttribute('aria-hidden', 'false'); }
-function closeSettingsSheet() { settingsSheet.classList.remove('open'); settingsBackdrop.classList.remove('open'); settingsSheet.setAttribute('aria-hidden', 'true'); }
-function openReviewModal() { reviewModal.classList.add('open'); reviewBackdrop.classList.add('open'); reviewModal.setAttribute('aria-hidden', 'false'); }
-function closeReviewModal() { reviewModal.classList.remove('open'); reviewBackdrop.classList.remove('open'); reviewModal.setAttribute('aria-hidden', 'true'); }
+function openSettingsSheet() {
+  settingsSheet.classList.add('open');
+  settingsBackdrop.classList.add('open');
+  settingsSheet.setAttribute('aria-hidden', 'false');
+}
+function closeSettingsSheet() {
+  const active = document.activeElement;
+  if (active && settingsSheet.contains(active) && typeof active.blur === 'function') active.blur();
+  settingsSheet.classList.remove('open');
+  settingsBackdrop.classList.remove('open');
+  settingsSheet.setAttribute('aria-hidden', 'true');
+  if (toolbarToggle && typeof toolbarToggle.focus === 'function') toolbarToggle.focus();
+}
+function openReviewModal() {
+  reviewModal.classList.add('open');
+  reviewBackdrop.classList.add('open');
+  reviewModal.setAttribute('aria-hidden', 'false');
+}
+function closeReviewModal() {
+  const active = document.activeElement;
+  if (active && reviewModal.contains(active) && typeof active.blur === 'function') active.blur();
+  reviewModal.classList.remove('open');
+  reviewBackdrop.classList.remove('open');
+  reviewModal.setAttribute('aria-hidden', 'true');
+  if (openReviewBtn && typeof openReviewBtn.focus === 'function') openReviewBtn.focus();
+}
 async function loadState() {
   if (!roomId) return;
   try {
-    const response = await fetch(`${CLASSROOM_STATE_URL}?roomId=${encodeURIComponent(roomId)}`);
+    const response = await fetch(`${CLASSROOM_STATE_URL}?roomId=${encodeURIComponent(roomId)}`, { cache: 'no-store' });
     const text = await response.text();
     const data = text ? JSON.parse(text) : {};
     if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
