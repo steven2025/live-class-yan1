@@ -265,6 +265,8 @@ const LANGUAGE_OPTIONS = [
   { value: 'ar', label: 'العربية' }
 ];
 const PRE_TRANSLATE_MIN_NEW_CHARS = 5;
+const INTERIM_TRANSLATE_MIN_INTERVAL_MS = 1200;
+const MIN_INTERIM_SEGMENT_CHARS = 12;
 
 let isTeaching = false;
 let isPaused = false;
@@ -357,7 +359,8 @@ function getRoundState(roundId) {
       inFlight: false,
       pendingSegment: null,
       committedText: '',
-      segmentSeq: 0
+      segmentSeq: 0,
+      lastTriggerAt: 0
     });
   }
   return roundTranslationState.get(roundId);
@@ -585,8 +588,14 @@ async function runTranslationForRound(roundId, segmentInfo) {
   console.log('RUN_TRANSLATION_FOR_ROUND', { roundId, segmentInfo, langs: getEffectiveTargetLanguages() });
   const state = getRoundState(roundId);
   if (!segmentInfo || !segmentInfo.segmentText) return;
-  if (state.inFlight) { state.pendingSegment = segmentInfo; return; }
+  if (state.inFlight) {
+    if (!state.pendingSegment || (segmentInfo.segmentText || '').length >= (state.pendingSegment.segmentText || '').length || segmentInfo.finalChunk) {
+      state.pendingSegment = segmentInfo;
+    }
+    return;
+  }
   state.inFlight = true;
+  state.lastTriggerAt = Date.now();
   try {
     const translated = await translateSubtitleByFunction(segmentInfo.segmentText, true, getEffectiveTargetLanguages());
     await submitSubtitleState(translated);
@@ -618,6 +627,16 @@ function maybeTranslateSubtitle(roundId, sourceText, isFinal) {
   console.log('SEGMENT_INFO', segmentInfo);
   if (!segmentInfo || !segmentInfo.segmentText) return;
   if (segmentInfo.segmentText === state.lastTranslatedText && !segmentInfo.finalChunk) return;
+
+  const now = Date.now();
+  if (!isFinal) {
+    if (segmentInfo.segmentText.length < MIN_INTERIM_SEGMENT_CHARS) return;
+    const addedChars = estimateAddedChars(segmentInfo.segmentText, state.lastTranslatedText || '');
+    const elapsed = now - (state.lastTriggerAt || 0);
+    if (addedChars < PRE_TRANSLATE_MIN_NEW_CHARS && elapsed < INTERIM_TRANSLATE_MIN_INTERVAL_MS) return;
+    if (elapsed < INTERIM_TRANSLATE_MIN_INTERVAL_MS) return;
+  }
+
   runTranslationForRound(roundId, segmentInfo);
 }
 function resetSilenceTimer() {
