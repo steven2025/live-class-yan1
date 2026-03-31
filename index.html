@@ -1039,6 +1039,7 @@ const params = new URLSearchParams(location.search);
 const CLASSROOM_STATE_URL = 'https://1311686407-fezy8495qt.ap-guangzhou.tencentscf.com';
 const STUDENT_LANG_UPDATE_URL = 'https://1311686407-edowcwqhkp.ap-guangzhou.tencentscf.com';
 const TRANSLATE_URL = 'https://1311686407-7ccgq1nhg9.ap-guangzhou.tencentscf.com';
+const CLASS_REVIEW_URL = 'https://1311686407-44eblx1eal.ap-guangzhou.tencentscf.com';
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
   { value: 'th', label: 'ไทย' },
@@ -1094,6 +1095,7 @@ let currentSubtitle = { source_text: '', translations: {} };
 let historyList = [];
 let reviewMode = 'teacher';
 let reviewText = '';
+let reviewData = null;
 let selectedTargetLang = localStorage.getItem('student_lang') || 'en';
 let pendingTargetLang = selectedTargetLang;
 let currentPollTimer = null;
@@ -1188,16 +1190,47 @@ function setReviewMode(mode) {
   reviewMode = mode;
   [[modeTeacher,'teacher'],[modeStudent,'student'],[modeDual,'dual']].forEach(([button, value]) => { button.className = 'btn ' + (value === mode ? 'btn-primary' : 'btn-soft'); });
 }
-function buildReviewText() {
+function buildReviewTextFallback() {
   if (!historyList.length) return '暂无课堂记录。';
   const lines = historyList.slice().reverse().map(item => {
     const teacher = item.source_text || item.source || '';
     const student = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
     if (reviewMode === 'teacher') return teacher;
     if (reviewMode === 'student') return student || teacher;
-    return `老师: ${teacher}\n学生: ${student || '（暂无翻译）'}`;
+    return `老师: ${teacher}
+学生: ${student || '（暂无翻译）'}`;
   });
-  return lines.join('\n\n');
+  return lines.join('
+
+');
+}
+async function generateClassReview() {
+  if (!roomId) throw new Error('缺少 roomId');
+  const payload = {
+    roomId: String(roomId),
+    reviewMode,
+    selectedLang: selectedTargetLang,
+    history: historyList,
+    currentSubtitle,
+    options: {
+      needKeywords: true,
+      needSegmentSummary: true,
+      needClassSummary: true,
+      needCleanTranscript: true,
+      needBilingual: true
+    }
+  };
+  const result = await postJson(CLASS_REVIEW_URL, payload);
+  if (!result || !result.ok || !result.data) {
+    throw new Error('课堂复盘函数返回异常');
+  }
+  reviewData = result.data;
+  if (reviewMode === 'teacher') return reviewData.reviewText?.teacher || '';
+  if (reviewMode === 'student') return reviewData.reviewText?.student || '';
+  return reviewData.reviewText?.dual || '';
+}
+function renderReviewPreviewText(text) {
+  previewContent.textContent = text || '暂无内容。';
 }
 function downloadReview() {
   if (!reviewText) return;
@@ -1298,10 +1331,53 @@ copyLinkBtn.addEventListener('click', async () => {
   } catch { alert('复制失败，请手动复制'); }
 });
 reconnectBtn.addEventListener('click', reconnectCurrentRoom);
-modeTeacher.addEventListener('click', () => setReviewMode('teacher'));
-modeStudent.addEventListener('click', () => setReviewMode('student'));
-modeDual.addEventListener('click', () => setReviewMode('dual'));
-generateBtn.addEventListener('click', () => { reviewText = buildReviewText(); previewContent.textContent = reviewText; downloadBtn.disabled = !reviewText; });
+modeTeacher.addEventListener('click', () => {
+  setReviewMode('teacher');
+  if (reviewData && reviewData.reviewText) {
+    reviewText = reviewData.reviewText['teacher'] || '';
+    renderReviewPreviewText(reviewText);
+    downloadBtn.disabled = !reviewText;
+  }
+});
+modeStudent.addEventListener('click', () => {
+  setReviewMode('student');
+  if (reviewData && reviewData.reviewText) {
+    reviewText = reviewData.reviewText['student'] || '';
+    renderReviewPreviewText(reviewText);
+    downloadBtn.disabled = !reviewText;
+  }
+});
+modeDual.addEventListener('click', () => {
+  setReviewMode('dual');
+  if (reviewData && reviewData.reviewText) {
+    reviewText = reviewData.reviewText['dual'] || '';
+    renderReviewPreviewText(reviewText);
+    downloadBtn.disabled = !reviewText;
+  }
+});
+generateBtn.addEventListener('click', async () => {
+  previewContent.textContent = '正在生成课堂复盘，请稍候...';
+  generateBtn.disabled = true;
+  downloadBtn.disabled = true;
+  try {
+    reviewText = await generateClassReview();
+    if (!reviewText) {
+      reviewText = buildReviewTextFallback();
+    }
+    renderReviewPreviewText(reviewText);
+    downloadBtn.disabled = !reviewText;
+    setConnectionStatus('复盘已生成', 'Class review ready', 'connected');
+  } catch (err) {
+    console.error('generateClassReview failed:', err);
+    reviewData = null;
+    reviewText = buildReviewTextFallback();
+    renderReviewPreviewText(reviewText || '生成失败，请稍后重试。');
+    downloadBtn.disabled = !reviewText;
+    setConnectionStatus('复盘生成失败', String(err?.message || err), 'error');
+  } finally {
+    generateBtn.disabled = false;
+  }
+});
 downloadBtn.addEventListener('click', downloadReview);
 renderLangChooser(); updateLanguageStatus(); setReviewMode('teacher'); sourceDiv.textContent = '等待字幕...'; nativeDiv.textContent = '正在等待翻译...';
 if (!roomId) { sessionInputArea.classList.remove('hidden'); mainContent.style.display = 'none'; } else { roomCodeInput.value = roomId; sessionInputArea.classList.add('hidden'); mainContent.style.display = 'block'; startPolling(); }
