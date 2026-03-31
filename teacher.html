@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>教师端 - 多语言实时语音翻译</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-  <script src="https://web.sdk.qcloud.com/trtc/webrtc/v5/dist/trtc.js"></script>
-  <style>
+    <style>
     * { box-sizing: border-box; user-select: none; }
     body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
     .page { padding: 24px; }
@@ -241,26 +240,13 @@
 </div>
 
 <script>
-
-let trtc = null;
-let isTeaching = false;
-let isPaused = false;
-let currentSession = localStorage.getItem('teacher_session') || null;
-let currentTaskId = null;
-let localHistory = [];
-let currentSubtitleState = { roundId: 'initial', sourceText: '', translations: {}, ended: true };
-let subtitleRoundStore = new Map();
-let subtitleSeq = 0;
-let teacherUserId = '';
-const appliedTargetLanguages = ['en'];
-const studentLanguageMap = new Map();
-const roundTranslationState = new Map();
-const PRE_TRANSLATE_MIN_TEXT = 6;
-const PRE_TRANSLATE_MIN_NEW_CHARS = 5;
-const PRE_TRANSLATE_INTERVAL_MS = 800;
-const PRE_TRANSLATE_LONG_TEXT = 14;
-const PRE_TRANSLATE_PUNCTUATION = /[，。！？；：,.!?;:]$/;
-
+const GET_ASR_AUTH_URL = 'https://1311686407-0zanrhkwaj.ap-guangzhou.tencentscf.com';
+const CLASSROOM_SUBMIT_URL = 'https://1311686407-2ff4v8e2pd.ap-guangzhou.tencentscf.com';
+const TRANSLATE_URL = 'https://1311686407-7ccgq1nhg9.ap-guangzhou.tencentscf.com';
+const TEACHER_PASSWORDS_URL = 'https://live-class-yan1-1311686407.cos.ap-guangzhou.myqcloud.com/jsmima.txt';
+const AUTH_STORAGE_KEY = 'teacher_invite_authed';
+const AUTH_CODE_STORAGE_KEY = 'teacher_invite_code';
+const SUPPORTED_TRANSLATION_LANGS = ['en','th','vi','id','ms','fr','ja','ru','ko','de','es','pt','zh','it','ar'];
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
   { value: 'th', label: 'ไทย' },
@@ -278,16 +264,24 @@ const LANGUAGE_OPTIONS = [
   { value: 'it', label: 'Italiano' },
   { value: 'ar', label: 'العربية' }
 ];
+const PRE_TRANSLATE_MIN_NEW_CHARS = 5;
 
-const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
-const START_AI_URL = 'https://1311686407-jpi1vwtz9x.ap-guangzhou.tencentscf.com';
-const STOP_AI_URL = 'https://1311686407-0hao9da3yt.ap-guangzhou.tencentscf.com';
-const TRANSLATE_URL = 'https://1311686407-7ccgq1nhg9.ap-guangzhou.tencentscf.com';
-const SDKAPPID = 1600133369;
-const TEACHER_PASSWORDS_URL = 'https://live-class-yan1-1311686407.cos.ap-guangzhou.myqcloud.com/jsmima.txt';
-const AUTH_STORAGE_KEY = 'teacher_invite_authed';
-const SUPPORTED_TRANSLATION_LANGS = LANGUAGE_OPTIONS.map(item => item.value);
-const AI_MESSAGE_TYPES = new Set([10000, 10020, 10001, 10030, 10003]);
+let isTeaching = false;
+let isPaused = false;
+let currentSession = localStorage.getItem('teacher_session') || null;
+let localHistory = [];
+let subtitleSeq = 0;
+let teacherCode = sessionStorage.getItem(AUTH_CODE_STORAGE_KEY) || '';
+let asrSocket = null;
+let mediaStream = null;
+let audioContext = null;
+let processorNode = null;
+let mediaSourceNode = null;
+let pendingPcmBytes = new Uint8Array(0);
+let lastPartialText = '';
+let currentAsrRoundId = '';
+let silenceTimer = null;
+let roundTranslationState = new Map();
 
 const sourceTextDiv = document.getElementById('sourceText');
 const historyDiv = document.getElementById('history');
@@ -309,21 +303,27 @@ const authError = document.getElementById('authError');
 const authConfirmBtn = document.getElementById('authConfirmBtn');
 const authCancelBtn = document.getElementById('authCancelBtn');
 
-function safeStringify(value) {
-  try { return JSON.stringify(value); } catch { return String(value); }
-}
 function escapeHtml(text) {
   return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 function getLanguageLabel(lang) {
   return LANGUAGE_OPTIONS.find(item => item.value === lang)?.label || lang;
 }
-function getActiveStudentLanguages() {
-  return Array.from(new Set(Array.from(studentLanguageMap.values()).filter(lang => SUPPORTED_TRANSLATION_LANGS.includes(lang))));
-}
 function getEffectiveTargetLanguages() {
-  const active = getActiveStudentLanguages();
-  return active.length ? active : ['en'];
+  return SUPPORTED_TRANSLATION_LANGS.slice();
+}
+function getRoundState(roundId) {
+  if (!roundTranslationState.has(roundId)) {
+    roundTranslationState.set(roundId, {
+      lastTranslatedText: '',
+      finalSent: false,
+      inFlight: false,
+      pendingSegment: null,
+      committedText: '',
+      segmentSeq: 0
+    });
+  }
+  return roundTranslationState.get(roundId);
 }
 
 let isTeacherAuthed = sessionStorage.getItem(AUTH_STORAGE_KEY) === '1';
@@ -379,17 +379,16 @@ async function fetchPasswordList() {
 }
 async function verifyTeacherInvite() {
   const input = String(authInput.value || '').trim();
-  if (!input) {
-    authError.textContent = '请输入邀请码';
-    return;
-  }
+  if (!input) { authError.textContent = '请输入邀请码'; return; }
   authError.textContent = '正在验证...';
   authConfirmBtn.disabled = true;
   try {
     const passwords = await fetchPasswordList();
     if (passwords.includes(input)) {
       isTeacherAuthed = true;
+      teacherCode = input;
       sessionStorage.setItem(AUTH_STORAGE_KEY, '1');
+      sessionStorage.setItem(AUTH_CODE_STORAGE_KEY, input);
       closeAuthModal();
       updateAuthUI();
       statusDiv.textContent = '教师端登录成功';
@@ -404,10 +403,8 @@ async function verifyTeacherInvite() {
 }
 
 function renderLanguageSummary() {
-  const activeLabels = getActiveStudentLanguages().map(getLanguageLabel);
-  langSummary.textContent = activeLabels.length
-    ? '当前在线学生语种：' + activeLabels.join('、') + '；默认兜底语种：English'
-    : '默认兜底语种：English；学生在线语种将自动覆盖。';
+  const activeLabels = getEffectiveTargetLanguages().map(getLanguageLabel);
+  langSummary.textContent = '当前自动生成语种：' + activeLabels.join('、');
 }
 function estimateAddedChars(currentText, lastText) {
   if (!lastText) return currentText.length;
@@ -415,22 +412,6 @@ function estimateAddedChars(currentText, lastText) {
   if (currentText.startsWith(lastText)) return currentText.length - lastText.length;
   return Math.max(currentText.length - lastText.length, PRE_TRANSLATE_MIN_NEW_CHARS);
 }
-function getRoundState(roundId) {
-  if (!roundTranslationState.has(roundId)) {
-    roundTranslationState.set(roundId, {
-      lastTranslatedText: '',
-      lastTranslateAt: 0,
-      finalSent: false,
-      inFlight: false,
-      pendingSegment: null,
-      committedText: '',
-      lastSegmentAt: 0,
-      segmentSeq: 0
-    });
-  }
-  return roundTranslationState.get(roundId);
-}
-
 function findLastBoundaryIndex(text, pattern, minIndex = 0) {
   let found = -1;
   for (const match of text.matchAll(pattern)) {
@@ -450,117 +431,25 @@ function extractSegmentForBroadcast(cleanText, state, isFinal) {
   const trimmed = remainder.trim();
   if (!trimmed) return null;
   if (isFinal) return { rawSegment: remainder, segmentText: trimmed, finalChunk: true };
-
   const strongIdx = findLastBoundaryIndex(remainder, /[。！？!?；;]/g, 7);
   if (strongIdx >= 0) {
     const raw = remainder.slice(0, strongIdx + 1);
     if (raw.trim().length >= 7) return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
   }
-
-  const idleMs = Date.now() - (state.lastSegmentAt || 0);
-  const sinceTranslate = Date.now() - (state.lastTranslateAt || 0);
-  const lengthReached = trimmed.length >= 24;
-  const waitReached = idleMs >= 1800 || sinceTranslate >= 1600;
-
-  if (lengthReached && waitReached) {
-    const mediumIdx = findLastBoundaryIndex(remainder, /[，,、：:]/g, 10);
-    if (mediumIdx >= 0) {
-      const raw = remainder.slice(0, mediumIdx + 1);
-      if (raw.trim().length >= 10) return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
-    }
+  const mediumIdx = findLastBoundaryIndex(remainder, /[，,、：:]/g, 12);
+  if (mediumIdx >= 0 && trimmed.length >= 18) {
+    const raw = remainder.slice(0, mediumIdx + 1);
+    return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
   }
-
-  const hardCutNeeded = trimmed.length >= 40 || idleMs >= 3600;
-  if (!hardCutNeeded) return null;
-
-  const fallbackIdx = findLastBoundaryIndex(remainder, /[，,、：:。！？!?；;]/g, 12);
-  if (fallbackIdx >= 18) {
-    const raw = remainder.slice(0, fallbackIdx + 1);
-    if (raw.trim().length >= 18) return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
-  }
-
-  const sliceLen = trimmed.length >= 54 ? 30 : 26;
-  const hardRaw = remainder.slice(0, sliceLen);
-  return { rawSegment: hardRaw, segmentText: hardRaw.trim(), finalChunk: false };
-}
-function shouldTriggerPreTranslate(cleanText, state) {
-  if (!cleanText || cleanText.length < PRE_TRANSLATE_MIN_TEXT) return false;
-  const since = Date.now() - (state.lastTranslateAt || 0);
-  const added = estimateAddedChars(cleanText, state.lastTranslatedText || '');
-  const hasPunctuation = PRE_TRANSLATE_PUNCTUATION.test(cleanText);
-  if (!state.lastTranslatedText && cleanText.length >= PRE_TRANSLATE_LONG_TEXT) return true;
-  if (added >= PRE_TRANSLATE_MIN_NEW_CHARS) return true;
-  if (hasPunctuation && since >= Math.floor(PRE_TRANSLATE_INTERVAL_MS / 2)) return true;
-  if (since >= PRE_TRANSLATE_INTERVAL_MS) return true;
-  return false;
-}
-function mergeTranslationMap(target, candidate) {
-  if (!candidate || typeof candidate !== 'object') return target;
-  Object.entries(candidate).forEach(([lang, value]) => {
-    const key = String(lang || '').trim();
-    if (!key) return;
-    if (typeof value === 'string' && value.trim()) {
-      target[key] = value.trim();
-      return;
-    }
-    if (value && typeof value === 'object') {
-      const nested = [value.text, value.translation_text, value.translationText, value.value, value.target_text, value.targetText].find(v => typeof v === 'string' && v.trim());
-      if (nested) target[key] = nested.trim();
-    }
-  });
-  return target;
-}
-function pickFirstNonEmptyString(values) {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) return value.trim();
-  }
-  return '';
-}
-function decodeCustomMessageData(data) {
-  if (!data) return null;
-  try {
-    if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
-      const decoded = new TextDecoder().decode(data);
-      return decoded ? JSON.parse(decoded) : null;
-    }
-    if (typeof data === 'string') return JSON.parse(data);
-    if (typeof data === 'object') {
-      if (typeof data.data === 'string' && data.data.trim()) {
-        try { return JSON.parse(data.data); } catch {}
-      }
-      if (typeof data.data === 'object' && data.data) return data.data;
-      return data;
-    }
-  } catch (e) {
-    console.warn('CUSTOM_MESSAGE decode failed', e, data);
+  if (trimmed.length >= 32) {
+    const hardRaw = remainder.slice(0, 24);
+    return { rawSegment: hardRaw, segmentText: hardRaw.trim(), finalChunk: false };
   }
   return null;
 }
-function normalizeSubtitleMessage(msg) {
-  const payload = (msg && typeof msg === 'object' && msg.payload && typeof msg.payload === 'object') ? msg.payload : {};
-  const typeValue = (msg && msg.type != null) ? Number(msg.type) : NaN;
-  const type = Number.isFinite(typeValue) ? typeValue : 0;
-  const sourceText = pickFirstNonEmptyString([payload.text, payload.source_text, payload.sourceText, payload.original_text, msg && msg.source_text, msg && msg.text]);
-  const translationText = pickFirstNonEmptyString([payload.translation_text, payload.translationText, payload.translated_text, payload.target_text, msg && msg.translation_text]);
-  const translationLanguage = pickFirstNonEmptyString([payload.translation_language, payload.translationLanguage, payload.target_language, msg && msg.translation_language]);
-  const translations = mergeTranslationMap(mergeTranslationMap({}, payload.translations), msg && msg.translations);
-  if (translationText) translations[translationLanguage || 'default'] = translationText;
-  const roundId = pickFirstNonEmptyString([payload.roundId, payload.roundid, payload.round_id, msg && msg.roundId, msg && msg.roundid]) || ('type_' + type + '_' + Date.now());
-  const end = Boolean(payload.end || payload.isFinal || payload.final || payload.finished);
-  const statusMessage = pickFirstNonEmptyString([payload.message, payload.reason, payload.status, payload.metric, msg && msg.message]);
-  return { type, roundId, sourceText, translationText, translationLanguage, translations, end, statusMessage, payload, sender: msg && (msg.sender || msg.userId), isSubtitleLike: !!sourceText || !!translationText || Object.keys(translations).length > 0 || type === 10000 || type === 10020 };
+function renderCurrentTeacherSubtitle() {
+  sourceTextDiv.textContent = lastPartialText || '等待语音输入...';
 }
-function mergeSubtitleRound(store, normalized) {
-  const key = normalized.roundId || ('fallback_' + Date.now());
-  const existing = store.get(key) || { roundId: key, sourceText: '', translations: {}, ended: false };
-  if (normalized.sourceText) existing.sourceText = normalized.sourceText;
-  mergeTranslationMap(existing.translations, normalized.translations);
-  if (normalized.translationLanguage && normalized.translationText) existing.translations[normalized.translationLanguage] = normalized.translationText;
-  if (normalized.end) existing.ended = true;
-  store.set(key, existing);
-  return existing;
-}
-function renderCurrentTeacherSubtitle() { sourceTextDiv.textContent = currentSubtitleState.sourceText || '等待语音输入...'; }
 function pushTeacherHistorySnapshot(snapshot) {
   if (!snapshot || !snapshot.sourceText) return;
   localHistory.unshift({ source: snapshot.sourceText, timestamp: new Date().toLocaleTimeString() });
@@ -581,18 +470,11 @@ async function postJson(url, params) {
   if (data && data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
   return data || {};
 }
-async function getUserSig(userId, roomId) {
-  const data = await postJson(GET_USERSIG_URL, { userId, roomId });
-  if (!data.userSig) throw new Error('获取 UserSig 失败');
-  return data.userSig;
+async function getAsrAuth(roomId) {
+  const data = await postJson(GET_ASR_AUTH_URL, { roomId: String(roomId), teacherCode });
+  if (!data.ok || !data.data || !data.data.url) throw new Error('获取 ASR 鉴权失败');
+  return data.data;
 }
-async function startAITranscription(roomId, userId, userSig, targetLanguages) {
-  const filteredTargetLanguages = (targetLanguages || []).filter(lang => SUPPORTED_TRANSLATION_LANGS.includes(lang));
-  const data = await postJson(START_AI_URL, { roomId, userId, userSig, targetLanguages: filteredTargetLanguages });
-  if (!data || !data.taskId) throw new Error('启动转录失败: ' + JSON.stringify(data));
-  return data.taskId;
-}
-async function stopAITranscription(taskId) { await postJson(STOP_AI_URL, { taskId }); }
 async function translateSubtitleByFunction(sourceText, isFinal, targetLanguages) {
   const selectedLangs = (targetLanguages || getEffectiveTargetLanguages()).filter(lang => SUPPORTED_TRANSLATION_LANGS.includes(lang));
   if (!sourceText || !sourceText.trim()) return null;
@@ -601,11 +483,13 @@ async function translateSubtitleByFunction(sourceText, isFinal, targetLanguages)
   if (!result || !result.ok || !result.data) throw new Error('翻译函数返回异常: ' + JSON.stringify(result));
   return result.data;
 }
-async function broadcastTranslatedSubtitle(data, roundId, forceEnded = true) {
-  if (!trtc || !data || isPaused) return;
-  const message = { cmd: 'translated_subtitle', from: teacherUserId || 'teacher', roundId: String(roundId || data.seq || Date.now()), source_text: data.sourceText || '', translations: data.translations || {}, end: !!forceEnded, ts: Date.now() };
-  const encoded = new TextEncoder().encode(JSON.stringify(message));
-  await trtc.sendCustomMessage({ cmdId: 1, data: encoded.buffer, reliable: true, ordered: true });
+async function submitSubtitleState(data) {
+  await postJson(CLASSROOM_SUBMIT_URL, {
+    roomId: String(currentSession),
+    teacherCode,
+    sourceText: data.sourceText || '',
+    translations: data.translations || {}
+  });
 }
 async function runTranslationForRound(roundId, segmentInfo) {
   const state = getRoundState(roundId);
@@ -614,16 +498,15 @@ async function runTranslationForRound(roundId, segmentInfo) {
   state.inFlight = true;
   try {
     const translated = await translateSubtitleByFunction(segmentInfo.segmentText, true, getEffectiveTargetLanguages());
-    await broadcastTranslatedSubtitle(translated, roundId + '_seg_' + (++state.segmentSeq), true);
+    await submitSubtitleState(translated);
     pushTeacherHistorySnapshot({ sourceText: translated.sourceText || segmentInfo.segmentText });
     state.committedText = (state.committedText || '') + (segmentInfo.rawSegment || segmentInfo.segmentText);
     state.lastTranslatedText = segmentInfo.segmentText;
-    state.lastTranslateAt = Date.now();
-    state.lastSegmentAt = Date.now();
     if (segmentInfo.finalChunk) state.finalSent = true;
+    if (!isPaused) statusDiv.textContent = '▶ 上课中... 正在识别并提交字幕';
   } catch (err) {
-    console.error('translate function failed:', err);
-    statusDiv.textContent = '翻译函数失败：' + (err && err.message ? err.message : String(err));
+    console.error('translate/submit failed:', err);
+    statusDiv.textContent = '翻译或提交失败：' + (err && err.message ? err.message : String(err));
   } finally {
     state.inFlight = false;
     if (state.pendingSegment) {
@@ -644,48 +527,103 @@ function maybeTranslateSubtitle(roundId, sourceText, isFinal) {
   if (segmentInfo.segmentText === state.lastTranslatedText && !segmentInfo.finalChunk) return;
   runTranslationForRound(roundId, segmentInfo);
 }
+function resetSilenceTimer() {
+  clearTimeout(silenceTimer);
+  silenceTimer = setTimeout(() => {
+    if (lastPartialText && currentAsrRoundId) {
+      maybeTranslateSubtitle(currentAsrRoundId, lastPartialText, true);
+      currentAsrRoundId = '';
+      lastPartialText = '';
+      renderCurrentTeacherSubtitle();
+    }
+  }, 2200);
+}
+function concatUint8(a, b) {
+  const out = new Uint8Array(a.length + b.length);
+  out.set(a, 0);
+  out.set(b, a.length);
+  return out;
+}
+function floatTo16BitPCM(float32Array) {
+  const out = new Int16Array(float32Array.length);
+  for (let i = 0; i < float32Array.length; i++) {
+    let s = Math.max(-1, Math.min(1, float32Array[i]));
+    out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  return new Uint8Array(out.buffer);
+}
+async function setupAudioAndStream() {
+  mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  audioContext = new Ctx({ sampleRate: 16000 });
+  await audioContext.resume();
+  mediaSourceNode = audioContext.createMediaStreamSource(mediaStream);
+  processorNode = audioContext.createScriptProcessor(4096, 1, 1);
+  processorNode.onaudioprocess = (event) => {
+    if (!isTeaching || !asrSocket || asrSocket.readyState !== WebSocket.OPEN) return;
+    const input = event.inputBuffer.getChannelData(0);
+    const pcmBytes = floatTo16BitPCM(input);
+    pendingPcmBytes = concatUint8(pendingPcmBytes, pcmBytes);
+    const chunkSize = 1280;
+    while (pendingPcmBytes.length >= chunkSize) {
+      const chunk = pendingPcmBytes.slice(0, chunkSize);
+      pendingPcmBytes = pendingPcmBytes.slice(chunkSize);
+      try { asrSocket.send(chunk.buffer); } catch (err) { console.warn('ASR send chunk failed', err); break; }
+    }
+  };
+  mediaSourceNode.connect(processorNode);
+  processorNode.connect(audioContext.destination);
+}
+async function connectAsrWebSocket(roomId) {
+  const authData = await getAsrAuth(roomId);
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(authData.url);
+    ws.binaryType = 'arraybuffer';
+    let opened = false;
+    ws.onopen = () => { opened = true; resolve(ws); };
+    ws.onerror = () => { if (!opened) reject(new Error('ASR WebSocket 连接失败')); };
+    ws.onclose = (evt) => { if (isTeaching && !isPaused) statusDiv.textContent = 'ASR 连接已关闭：' + (evt.reason || '连接结束'); };
+    ws.onmessage = (event) => handleAsrMessage(event.data);
+  });
+}
+function handleAsrMessage(raw) {
+  let msg = null;
+  try { msg = typeof raw === 'string' ? JSON.parse(raw) : JSON.parse(new TextDecoder().decode(raw)); } catch { return; }
+  const code = Number(msg.code ?? 0);
+  if (code !== 0) { statusDiv.textContent = 'ASR 返回错误：' + (msg.message || JSON.stringify(msg)); return; }
+  const result = msg.result || {};
+  const text = String(result.voice_text_str || '').trim();
+  const sliceType = Number(result.slice_type);
+  if (!text) return;
+  if (!currentAsrRoundId || sliceType === 0) currentAsrRoundId = result.voice_id || ('round_' + Date.now());
+  lastPartialText = text;
+  renderCurrentTeacherSubtitle();
+  resetSilenceTimer();
+  if (!isPaused) statusDiv.textContent = sliceType === 2 ? '▶ 上课中... 已识别到稳定字幕' : '▶ 上课中... 正在实时识别';
+  maybeTranslateSubtitle(currentAsrRoundId || ('round_' + Date.now()), text, sliceType === 2);
+  if (sliceType === 2) {
+    currentAsrRoundId = '';
+    lastPartialText = '';
+    renderCurrentTeacherSubtitle();
+  }
+}
 async function startClass() {
   if (isTeaching) return;
   if (!isTeacherAuthed) { requireAuth(); return; }
+  if (!teacherCode) { statusDiv.textContent = '教师邀请码缺失，请重新登录'; return; }
   if (!currentSession) { alert('请先创建新课程'); return; }
-  const roomId = parseInt(currentSession, 10);
-  const userId = 'teacher_' + Date.now();
-  teacherUserId = userId;
   try {
-    statusDiv.textContent = '正在获取 UserSig...';
-    const userSig = await getUserSig(userId, roomId);
-    trtc = TRTC.create();
-    trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
-    if (TRTC.EVENT && TRTC.EVENT.REMOTE_USER_LEAVE) {
-      trtc.on(TRTC.EVENT.REMOTE_USER_LEAVE, event => {
-        const remoteUserId = event?.userId || event?.data?.userId;
-        if (remoteUserId && studentLanguageMap.delete(remoteUserId)) renderLanguageSummary();
-      });
-    }
-    await trtc.enterRoom({ sdkAppId: SDKAPPID, roomId, scene: 'rtc', userId, userSig });
-    await trtc.startLocalAudio();
+    statusDiv.textContent = '正在连接腾讯云 ASR...';
+    asrSocket = await connectAsrWebSocket(currentSession);
+    statusDiv.textContent = '已连接 ASR，正在打开麦克风...';
+    await setupAudioAndStream();
     isTeaching = true; isPaused = false;
     startBtn.disabled = true; pauseBtn.disabled = false; stopBtn.disabled = false;
-    statusDiv.textContent = '已进入房间，正在启动 AI 转录...';
-    try {
-      currentTaskId = await startAITranscription(roomId, userId, userSig, ['en']);
-      statusDiv.textContent = '▶ 上课中... AI 转录已启动，翻译语种将按在线学生自动调整';
-    } catch (aiErr) {
-      const message = (aiErr && aiErr.message) || String(aiErr || '');
-      if (message.includes('TaskExist') || message.includes('任务已存在')) {
-        currentTaskId = 'TASK_EXISTS';
-        statusDiv.textContent = '▶ 上课中... 房间里已有 AI 转录任务，当前页面继续复用';
-      } else {
-        statusDiv.textContent = '已进房间，但 AI 转录启动失败：' + message;
-      }
-    }
+    statusDiv.textContent = '▶ 上课中... 已开始实时识别';
   } catch (err) {
     console.error('startClass failed:', err);
     statusDiv.textContent = '启动失败：' + ((err && err.message) || JSON.stringify(err));
-    if (trtc) await trtc.exitRoom().catch(() => {});
-    trtc = null; isTeaching = false; isPaused = false; currentTaskId = null; teacherUserId = '';
-    startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
-    updateAuthUI();
+    await endClass(true);
   }
 }
 function pauseClass() {
@@ -696,44 +634,31 @@ function pauseClass() {
   pauseBtn.dataset.label = isPaused ? '继续' : '暂停';
   pauseBtn.title = isPaused ? '继续' : '暂停';
   pauseBtn.setAttribute('aria-label', isPaused ? '继续' : '暂停');
-  statusDiv.textContent = isPaused ? '⏸ 已暂停：老师仍在房间中，但暂不广播新的翻译字幕' : '▶ 已继续：正在接收并广播字幕';
+  statusDiv.textContent = isPaused ? '⏸ 已暂停：继续采集语音，但暂不翻译与提交字幕' : '▶ 已继续：正在识别并提交字幕';
 }
-async function endClass() {
-  if (!isTeacherAuthed) { requireAuth(); return; }
-  try {
-    if (currentTaskId && currentTaskId !== 'TASK_EXISTS') await stopAITranscription(currentTaskId).catch(err => console.warn('停止AI转录失败', err));
-    currentTaskId = null;
-    if (trtc) { await trtc.exitRoom().catch(err => console.warn('退出房间失败', err)); trtc = null; }
-  } finally {
-    isTeaching = false; isPaused = false; teacherUserId = '';
-    subtitleRoundStore = new Map(); studentLanguageMap.clear(); roundTranslationState.clear(); renderLanguageSummary();
-    startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
-    updateAuthUI();
+async function cleanupAudio() {
+  clearTimeout(silenceTimer);
+  silenceTimer = null;
+  if (processorNode) { try { processorNode.disconnect(); } catch {} processorNode.onaudioprocess = null; processorNode = null; }
+  if (mediaSourceNode) { try { mediaSourceNode.disconnect(); } catch {} mediaSourceNode = null; }
+  if (mediaStream) { mediaStream.getTracks().forEach(track => { try { track.stop(); } catch {} }); mediaStream = null; }
+  if (audioContext) { try { await audioContext.close(); } catch {} audioContext = null; }
+  pendingPcmBytes = new Uint8Array(0);
+}
+async function closeAsrSocket() {
+  if (!asrSocket) return;
+  try { if (asrSocket.readyState === WebSocket.OPEN) asrSocket.send(JSON.stringify({ type: 'end' })); } catch {}
+  try { asrSocket.close(); } catch {}
+  asrSocket = null;
+}
+async function endClass(silent = false) {
+  try { await cleanupAudio(); await closeAsrSocket(); } finally {
+    isTeaching = false; isPaused = false; lastPartialText = ''; currentAsrRoundId = ''; roundTranslationState = new Map();
+    startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true; updateAuthUI();
     pauseBtn.textContent = '⏸'; pauseBtn.dataset.label = '暂停'; pauseBtn.title = '暂停';
-    statusDiv.textContent = '⏹ 课程已结束';
+    if (!silent) statusDiv.textContent = '⏹ 课程已结束';
+    sourceTextDiv.textContent = '等待语音输入...';
   }
-}
-function onCustomMessage(event) {
-  const msg = decodeCustomMessageData(event && event.data); if (!msg) return;
-  if (msg.cmd === 'student_lang_update') {
-    const lang = typeof msg.lang === 'string' ? msg.lang.trim() : '';
-    const userId = event?.userId || msg.from;
-    if (userId && SUPPORTED_TRANSLATION_LANGS.includes(lang)) { studentLanguageMap.set(userId, lang); renderLanguageSummary(); }
-    return;
-  }
-  if (msg.cmd === 'translated_subtitle') return;
-  if (!AI_MESSAGE_TYPES.has(Number(msg.type))) return;
-  const normalized = normalizeSubtitleMessage(msg);
-  if (!normalized.isSubtitleLike) {
-    if (normalized.type === 10003) statusDiv.textContent = isPaused ? '⏸ 已暂停，AI 会话已就绪' : '▶ 上课中... AI 会话已就绪';
-    else if (normalized.type === 10001) statusDiv.textContent = '▶ 上课中... AI 状态：' + (normalized.statusMessage || '已收到');
-    else if (normalized.type === 10030) statusDiv.textContent = '⚠ AI 服务错误：' + (normalized.statusMessage || safeStringify(normalized.payload));
-    return;
-  }
-  const merged = mergeSubtitleRound(subtitleRoundStore, normalized);
-  currentSubtitleState = merged; renderCurrentTeacherSubtitle();
-  if (!isPaused) statusDiv.textContent = '▶ 上课中... 正在接收字幕';
-  maybeTranslateSubtitle(merged.roundId, merged.sourceText, merged.ended);
 }
 function buildStudentUrl(sessionCode) {
   const url = new URL(window.location.href);
@@ -753,12 +678,9 @@ async function createNewSession() {
   currentSessionCodeSpan.textContent = currentSession;
   const studentUrl = buildStudentUrl(currentSession); studentLinkSpan.textContent = studentUrl;
   sessionInfoDiv.style.display = 'block'; generateQRCodeWithSession(currentSession);
-  subtitleSeq = 0; currentSubtitleState = { roundId: 'initial', sourceText: '', translations: {}, ended: true };
-  subtitleRoundStore = new Map(); studentLanguageMap.clear(); roundTranslationState.clear(); renderLanguageSummary();
-  sourceTextDiv.textContent = '等待语音输入...';
-  startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
-  updateAuthUI();
-  statusDiv.textContent = '新课程已创建，课程码：' + currentSession + '；等待学生加入后自动采集在线语种';
+  subtitleSeq = 0; roundTranslationState = new Map(); renderLanguageSummary();
+  sourceTextDiv.textContent = '等待语音输入...'; startBtn.disabled = false; pauseBtn.disabled = true; stopBtn.disabled = true;
+  updateAuthUI(); statusDiv.textContent = '新课程已创建，课程码：' + currentSession;
 }
 function generateQRCodeWithSession(sessionCode) {
   const studentUrl = buildStudentUrl(sessionCode);
@@ -788,7 +710,7 @@ updateAuthUI();
 if (currentSession) { sessionInfoDiv.style.display = 'block'; currentSessionCodeSpan.textContent = currentSession; const defaultLink = buildStudentUrl(currentSession); studentLinkSpan.textContent = defaultLink; generateQRCodeWithSession(currentSession); startBtn.disabled = false; updateAuthUI(); }
 else { generateQRCodeWithSession(''); }
 if (window.location.protocol === 'file:') statusDiv.textContent = '测试版';
-
 </script>
+
 </body>
 </html>

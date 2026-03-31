@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes">
-  <title>课堂字幕 - 学生端 (TRTC)</title>
-  <script src="https://web.sdk.qcloud.com/trtc/webrtc/v5/dist/trtc.js"></script>
-  <style>
+  <title>课堂字幕 - 学生端</title>
+    <style>
     :root {
       --bg: #081224;
       --bg-soft: #0f1d35;
@@ -1054,565 +1053,226 @@
 </div>
 
 <script>
-  const params = new URLSearchParams(location.search);
-  const GET_USERSIG_URL = 'https://1311686407-07zu5h43g1.ap-guangzhou.tencentscf.com';
-  const SDKAPPID = 1600133369;
-
-  const LANGUAGE_OPTIONS = [
-    { value: 'en', label: 'English' },
-    { value: 'th', label: 'ไทย' },
-    { value: 'vi', label: 'Tiếng Việt' },
-    { value: 'id', label: 'Bahasa Indonesia' },
-    { value: 'ms', label: 'Bahasa Melayu' },
-    { value: 'fr', label: 'Français' },
-    { value: 'ja', label: '日本語' },
-    { value: 'ru', label: 'Русский' },
-    { value: 'ko', label: '한국어' },
-    { value: 'de', label: 'Deutsch' },
-    { value: 'es', label: 'Español' },
-    { value: 'pt', label: 'Português' },
-    { value: 'zh', label: '中文 (简体)' },
-    { value: 'it', label: 'Italiano' },
-    { value: 'ar', label: 'العربية' }
-  ];
-  const SUPPORTED_TRANSLATION_LANGS = LANGUAGE_OPTIONS.map(item => item.value);
-
-  function normalizeRoomCode(value) {
-    return String(value || '').trim().replace(/\D/g, '').slice(0, 6);
-  }
-  function getRoomCodeFromUrl() {
-    return normalizeRoomCode(
-      params.get('room') || params.get('code') || params.get('session') || params.get('classroom')
-    );
-  }
-  function safeStringify(value) {
-    try { return JSON.stringify(value); } catch { return String(value); }
-  }
-  function getLangLabel(value) {
-    return LANGUAGE_OPTIONS.find(item => item.value === value)?.label || value || 'English';
-  }
-  function pickFirstNonEmptyString(values) {
-    for (const value of values) {
-      if (typeof value === 'string' && value.trim()) return value.trim();
-    }
-    return '';
-  }
-  function escapeHtml(str) {
-    return String(str ?? '')
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
-  }
-
-  let roomId = getRoomCodeFromUrl();
-  let trtc = null;
-  let currentSubtitle = { roundId: 'initial', source_text: '', translations: {}, ended: true };
-  let subtitleRoundStore = new Map();
-  let historyList = [];
-  let reviewMode = 'teacher';
-  let reviewText = '';
-  let selectedTargetLang = localStorage.getItem('student_lang') || 'en';
-  let pendingTargetLang = selectedTargetLang;
-  let teacherAudioEnabled = false;
-  let currentStudentUserId = '';
-  const remoteAudioUsers = new Set();
-  let audioObserver = null;
-
-  if (!SUPPORTED_TRANSLATION_LANGS.includes(selectedTargetLang)) selectedTargetLang = 'en';
-  if (!SUPPORTED_TRANSLATION_LANGS.includes(pendingTargetLang)) pendingTargetLang = selectedTargetLang;
-
-  const sessionInputArea = document.getElementById('sessionInputArea');
-  const mainContent = document.getElementById('mainContent');
-  const roomCodeInput = document.getElementById('roomCodeInput');
-  const confirmSessionBtn = document.getElementById('confirmSessionBtn');
-  const sourceDiv = document.getElementById('source');
-  const nativeDiv = document.getElementById('native');
-  const historyDiv = document.getElementById('history');
-  const statusMainZh = document.getElementById('statusMainZh');
-  const statusMainEn = document.getElementById('statusMainEn');
-  const statusLanguage = document.getElementById('statusLanguage');
-  const statusAudio = document.getElementById('statusAudio');
-  const toolbarToggle = document.getElementById('toolbarToggle');
-  const toolbarHideBtn = document.getElementById('toolbarHideBtn');
-  const settingsBackdrop = document.getElementById('settingsBackdrop');
-  const settingsSheet = document.getElementById('settingsSheet');
-  const langGrid = document.getElementById('langGrid');
-  const langConfirmBtn = document.getElementById('langConfirmBtn');
-  const audioToggleBtn = document.getElementById('audioToggleBtn');
-  const openReviewBtn = document.getElementById('openReviewBtn');
-  const copyLinkBtn = document.getElementById('copyLinkBtn');
-  const reconnectBtn = document.getElementById('reconnectBtn');
-  const reviewBackdrop = document.getElementById('reviewBackdrop');
-  const reviewModal = document.getElementById('reviewModal');
-  const closeReviewBtn = document.getElementById('closeReviewBtn');
-  const modeTeacher = document.getElementById('modeTeacher');
-  const modeStudent = document.getElementById('modeStudent');
-  const modeDual = document.getElementById('modeDual');
-  const generateBtn = document.getElementById('generateBtn');
-  const downloadBtn = document.getElementById('downloadBtn');
-  const previewContent = document.getElementById('previewContent');
-
-  function setConnectionStatus(zh, en, kind = 'pending') {
-    statusMainZh.textContent = zh;
-    statusMainEn.textContent = en;
-    statusMainZh.classList.remove('pending', 'error', 'connected');
-    statusMainZh.classList.add(kind);
-  }
-
-  function updateLanguageStatus() {
-    statusLanguage.textContent = getLangLabel(selectedTargetLang);
-  }
-
-  function applyAudioStateToDom() {
-    const medias = Array.from(document.querySelectorAll('audio, video'));
-    medias.forEach(media => {
-      media.muted = !teacherAudioEnabled;
-      if ('volume' in media) media.volume = teacherAudioEnabled ? 1 : 0;
-      if (!teacherAudioEnabled) {
-        try { media.pause?.(); } catch {}
-      } else if (typeof media.play === 'function') {
-        const p = media.play();
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-      }
+const params = new URLSearchParams(location.search);
+const CLASSROOM_STATE_URL = 'https://1311686407-fezy8495qt.ap-guangzhou.tencentscf.com';
+const TRANSLATE_URL = 'https://1311686407-7ccgq1nhg9.ap-guangzhou.tencentscf.com';
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'th', label: 'ไทย' },
+  { value: 'vi', label: 'Tiếng Việt' },
+  { value: 'id', label: 'Bahasa Indonesia' },
+  { value: 'ms', label: 'Bahasa Melayu' },
+  { value: 'fr', label: 'Français' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ru', label: 'Русский' },
+  { value: 'ko', label: '한국어' },
+  { value: 'de', label: 'Deutsch' },
+  { value: 'es', label: 'Español' },
+  { value: 'pt', label: 'Português' },
+  { value: 'zh', label: '中文 (简体)' },
+  { value: 'it', label: 'Italiano' },
+  { value: 'ar', label: 'العربية' }
+];
+const SUPPORTED_TRANSLATION_LANGS = LANGUAGE_OPTIONS.map(item => item.value);
+function normalizeRoomCode(value) { return String(value || '').trim().replace(/\D/g, '').slice(0, 6); }
+function getRoomCodeFromUrl() { return normalizeRoomCode(params.get('room') || params.get('code') || params.get('session') || params.get('classroom')); }
+function getLangLabel(value) { return LANGUAGE_OPTIONS.find(item => item.value === value)?.label || value || 'English'; }
+function escapeHtml(str) { return String(str ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;'); }
+async function postJson(url, payload) {
+  const response = await fetch(url, { method: 'POST', mode: 'cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const rawText = await response.text();
+  let data = null;
+  try { data = rawText ? JSON.parse(rawText) : null; } catch { throw new Error(`接口返回非 JSON（${response.status}）`); }
+  if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
+  if (data && data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+  return data || {};
+}
+let roomId = getRoomCodeFromUrl();
+let currentSubtitle = { source_text: '', translations: {} };
+let historyList = [];
+let reviewMode = 'teacher';
+let reviewText = '';
+let selectedTargetLang = localStorage.getItem('student_lang') || 'en';
+let pendingTargetLang = selectedTargetLang;
+let currentPollTimer = null;
+let translateSeq = 0;
+if (!SUPPORTED_TRANSLATION_LANGS.includes(selectedTargetLang)) selectedTargetLang = 'en';
+if (!SUPPORTED_TRANSLATION_LANGS.includes(pendingTargetLang)) pendingTargetLang = selectedTargetLang;
+const sessionInputArea = document.getElementById('sessionInputArea');
+const mainContent = document.getElementById('mainContent');
+const roomCodeInput = document.getElementById('roomCodeInput');
+const confirmSessionBtn = document.getElementById('confirmSessionBtn');
+const sourceDiv = document.getElementById('source');
+const nativeDiv = document.getElementById('native');
+const historyDiv = document.getElementById('history');
+const statusMainZh = document.getElementById('statusMainZh');
+const statusMainEn = document.getElementById('statusMainEn');
+const statusLanguage = document.getElementById('statusLanguage');
+const statusAudio = document.getElementById('statusAudio');
+const toolbarToggle = document.getElementById('toolbarToggle');
+const toolbarHideBtn = document.getElementById('toolbarHideBtn');
+const settingsBackdrop = document.getElementById('settingsBackdrop');
+const settingsSheet = document.getElementById('settingsSheet');
+const langGrid = document.getElementById('langGrid');
+const langConfirmBtn = document.getElementById('langConfirmBtn');
+const audioToggleBtn = document.getElementById('audioToggleBtn');
+const openReviewBtn = document.getElementById('openReviewBtn');
+const copyLinkBtn = document.getElementById('copyLinkBtn');
+const reconnectBtn = document.getElementById('reconnectBtn');
+const reviewBackdrop = document.getElementById('reviewBackdrop');
+const reviewModal = document.getElementById('reviewModal');
+const closeReviewBtn = document.getElementById('closeReviewBtn');
+const modeTeacher = document.getElementById('modeTeacher');
+const modeStudent = document.getElementById('modeStudent');
+const modeDual = document.getElementById('modeDual');
+const generateBtn = document.getElementById('generateBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const previewContent = document.getElementById('previewContent');
+function setConnectionStatus(zh, en, kind = 'pending') {
+  statusMainZh.textContent = zh;
+  statusMainEn.textContent = en;
+  statusMainZh.classList.remove('pending', 'error', 'connected');
+  statusMainZh.classList.add(kind);
+}
+function updateLanguageStatus() { statusLanguage.textContent = getLangLabel(selectedTargetLang); }
+function updateAudioStatus() {
+  statusAudio.textContent = '无 None';
+  audioToggleBtn.className = 'btn btn-soft';
+  audioToggleBtn.innerHTML = '<span class="btn-zh">教师音频不可用</span><span class="btn-en">Audio Unavailable</span>';
+}
+function renderLangChooser() {
+  langGrid.innerHTML = LANGUAGE_OPTIONS.map(item => {
+    const selected = item.value === pendingTargetLang ? 'selected' : '';
+    return `<button type="button" class="lang-option ${selected}" data-lang="${item.value}" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</button>`;
+  }).join('');
+}
+function getPreferredTranslation(translations) {
+  const map = translations || {};
+  return map[selectedTargetLang] || Object.values(map)[0] || '';
+}
+async function ensureSelectedTranslation(item) {
+  if (!item || !item.source_text) return '';
+  const existing = getPreferredTranslation(item.translations);
+  if (existing) return existing;
+  try {
+    const result = await postJson(TRANSLATE_URL, {
+      roomId: parseInt(roomId || '0', 10),
+      speakerId: 'student',
+      seq: ++translateSeq,
+      sourceLang: 'zh-CN',
+      sourceText: item.source_text,
+      targetLangs: [selectedTargetLang],
+      isFinal: true,
+      ts: Date.now()
     });
-  }
-
-  async function syncRemoteAudioMuteState() {
-    if (!trtc || typeof trtc.muteRemoteAudio !== 'function') return;
-    const mute = !teacherAudioEnabled;
-    const targets = remoteAudioUsers.size ? Array.from(remoteAudioUsers) : ['*'];
-    for (const userId of targets) {
-      try {
-        await trtc.muteRemoteAudio(userId, mute);
-      } catch (err) {
-        console.warn('muteRemoteAudio failed:', userId, err);
-      }
+    if (result.ok && result.data && result.data.translations && result.data.translations[selectedTargetLang]) {
+      item.translations = Object.assign({}, item.translations || {}, result.data.translations);
+      return item.translations[selectedTargetLang];
     }
-    applyAudioStateToDom();
+  } catch (err) {
+    console.warn('fallback translate failed', err);
   }
-
-  function ensureAudioObserver() {
-    if (audioObserver) return;
-    audioObserver = new MutationObserver(() => applyAudioStateToDom());
-    audioObserver.observe(document.body, { childList: true, subtree: true });
-  }
-
-  function updateAudioStatus() {
-    statusAudio.textContent = teacherAudioEnabled ? '开启 On' : '关闭 Off';
-    audioToggleBtn.className = 'btn ' + (teacherAudioEnabled ? 'btn-success' : 'btn-soft');
-    audioToggleBtn.innerHTML = teacherAudioEnabled
-      ? '<span class="btn-zh">关闭教师声音</span><span class="btn-en">Disable Audio</span>'
-      : '<span class="btn-zh">开启教师声音</span><span class="btn-en">Enable Audio</span>';
-    syncRemoteAudioMuteState();
-  }
-
-  function mergeTranslationMap(target, candidate) {
-    if (!candidate || typeof candidate !== 'object') return target;
-    Object.entries(candidate).forEach(([lang, value]) => {
-      const key = String(lang || '').trim();
-      if (!key) return;
-      if (typeof value === 'string' && value.trim()) {
-        target[key] = value.trim();
-        return;
-      }
-      if (value && typeof value === 'object') {
-        const nested = [value.text, value.translation_text, value.translationText, value.value, value.target_text, value.targetText]
-          .find(v => typeof v === 'string' && v.trim());
-        if (nested) target[key] = nested.trim();
-      }
-    });
-    return target;
-  }
-
-  function decodeCustomMessageData(data) {
-    if (!data) return null;
-    try {
-      if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
-        const decoded = new TextDecoder().decode(data);
-        return decoded ? JSON.parse(decoded) : null;
-      }
-      if (typeof data === 'string') return JSON.parse(data);
-      return data;
-    } catch (e) {
-      console.warn('CUSTOM_MESSAGE decode failed', e, data);
-      return null;
-    }
-  }
-
-  function normalizeSubtitleMessage(msg) {
-    const payload = (msg && typeof msg === 'object' && msg.payload && typeof msg.payload === 'object') ? msg.payload : {};
-    const typeValue = (msg && msg.type != null) ? Number(msg.type) : NaN;
-    const type = Number.isFinite(typeValue) ? typeValue : 0;
-    const sourceText = pickFirstNonEmptyString([payload.text, payload.source_text, payload.sourceText, msg && msg.source_text, msg && msg.text]);
-    const translationText = pickFirstNonEmptyString([payload.translation_text, payload.translationText, payload.target_text, payload.targetText, msg && msg.translation_text]);
-    const translationLanguage = pickFirstNonEmptyString([payload.translation_language, payload.translationLanguage, payload.target_language, payload.targetLanguage, msg && msg.translation_language]);
-    const translations = mergeTranslationMap(mergeTranslationMap({}, payload.translations), msg && msg.translations);
-    if (translationText) translations[translationLanguage || 'default'] = translationText;
-    const roundId = pickFirstNonEmptyString([payload.roundid, payload.roundId, msg && msg.roundid, msg && msg.roundId]) || 'default';
-    const end = typeof payload.end === 'boolean' ? payload.end : !!(payload.is_final || payload.final || (msg && msg.end));
-    const statusMessage = pickFirstNonEmptyString([payload.message, payload.status, payload.metric, payload.code != null ? String(payload.code) : '']);
-    return {
-      raw: msg,
-      payload,
-      type,
-      roundId,
-      sourceText,
-      translationText,
-      translationLanguage,
-      translations,
-      end,
-      statusMessage,
-      isSubtitleLike: type === 10000 || !!sourceText || !!translationText || msg.cmd === 'translated_subtitle'
-    };
-  }
-
-  function mergeSubtitleRound(store, normalized) {
-    const roundId = normalized.roundId || 'default';
-    const existing = store.get(roundId) || { roundId, source_text: '', translations: {}, ended: false, updatedAt: 0 };
-    const merged = {
-      roundId,
-      source_text: normalized.sourceText || existing.source_text || '',
-      translations: Object.assign({}, existing.translations),
-      ended: normalized.end,
-      updatedAt: Date.now()
-    };
-    mergeTranslationMap(merged.translations, normalized.translations);
-    if (normalized.translationText) merged.translations[normalized.translationLanguage || 'default'] = normalized.translationText;
-    if (!normalized.sourceText && !normalized.translationText) merged.ended = existing.ended;
-    store.set(roundId, merged);
-    return merged;
-  }
-
-  function getPreferredTranslation(translations) {
-    const map = translations || {};
-    return map[selectedTargetLang] || Object.values(map)[0] || '';
-  }
-
-  function renderCurrentSubtitle() {
-    sourceDiv.textContent = currentSubtitle.source_text || '等待字幕...';
-    nativeDiv.textContent = getPreferredTranslation(currentSubtitle.translations) || '正在等待翻译...';
-  }
-
-  function pushHistorySnapshot(snapshot) {
-    const current = snapshot || currentSubtitle;
-    const source = (current.source_text || '').trim();
-    if (!source) return;
-    const translation = getPreferredTranslation(current.translations) || '';
-    const previous = historyList[0];
-    if (previous && previous.source === source) {
-      previous.translation = translation;
-      previous.translations = Object.assign({}, current.translations);
-      previous.timestamp = new Date().toLocaleTimeString();
-    } else {
-      historyList.unshift({
-        source,
-        translation,
-        timestamp: new Date().toLocaleTimeString(),
-        translations: Object.assign({}, current.translations)
-      });
-      if (historyList.length > 50) historyList.pop();
-    }
-    renderHistory();
-  }
-
-  function renderHistory() {
-    if (!historyList.length) {
-      historyDiv.innerHTML = '<div class="history-empty">暂无历史记录</div>';
-      return;
-    }
-    historyDiv.innerHTML = historyList.map((item, index) => {
-      const translated = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
-      const level = Math.min(index, 4);
-      return `
-        <div class="history-item level-${level}">
-          <div class="history-source">${escapeHtml(item.source)}</div>
-          <div class="history-translation">${escapeHtml(translated || '正在等待翻译...')}</div>
-          <div class="history-time">${escapeHtml(item.timestamp)}</div>
-        </div>`;
-    }).join('');
-  }
-
-  function renderLangChooser() {
-    langGrid.innerHTML = LANGUAGE_OPTIONS.map(item => {
-      const selected = item.value === pendingTargetLang ? 'selected' : '';
-      return `<button type="button" class="lang-option ${selected}" data-lang="${item.value}" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</button>`;
-    }).join('');
-  }
-
-  function setReviewMode(mode) {
-    reviewMode = mode;
-    const defs = [
-      [modeTeacher, 'teacher'],
-      [modeStudent, 'student'],
-      [modeDual, 'dual']
-    ];
-    defs.forEach(([button, value]) => {
-      const active = value === mode;
-      button.className = 'btn ' + (active ? 'btn-primary' : 'btn-soft');
-    });
-  }
-
-  function buildReviewText() {
-    if (!historyList.length) return '暂无课堂记录。';
-    const lines = historyList.slice().reverse().map(item => {
-      const teacher = item.source || '';
-      const student = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
-      if (reviewMode === 'teacher') return teacher;
-      if (reviewMode === 'student') return student || teacher;
-      return `老师: ${teacher}\n学生: ${student || '（暂无翻译）'}`;
-    });
-    return lines.join('\n\n');
-  }
-
-  function downloadReview() {
-    if (!reviewText) return;
-    const blob = new Blob([reviewText], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `class-review-${roomId || 'session'}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-
-  async function reportLanguagePreference(reason = 'update') {
-    if (!trtc || !currentStudentUserId || !selectedTargetLang) return;
-    try {
-      const message = { cmd: 'student_lang_update', from: currentStudentUserId, lang: selectedTargetLang, reason, ts: Date.now() };
-      const encoded = new TextEncoder().encode(JSON.stringify(message));
-      await trtc.sendCustomMessage({ cmdId: 1, data: encoded.buffer, reliable: true, ordered: true });
-      console.log('STUDENT language sync JSON:', safeStringify(message));
-    } catch (err) {
-      console.warn('student_lang_update failed', err);
-    }
-  }
-
-  async function postJson(url, payload) {
-    let response;
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        mode: 'cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } catch (networkErr) {
-      throw new Error(`网络请求失败：${networkErr?.message || networkErr}`);
-    }
-    const rawText = await response.text().catch(() => '');
-    let data = null;
-    try {
-      data = rawText ? JSON.parse(rawText) : null;
-    } catch {
-      throw new Error(`接口返回非 JSON（${response.status}）：${rawText || 'empty response'}`);
-    }
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${rawText || JSON.stringify(data)}`);
-    if (data && data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
-    return data || {};
-  }
-
-  async function getUserSig(userId, room) {
-    const data = await postJson(GET_USERSIG_URL, { userId, roomId: room });
-    if (!data.userSig) throw new Error('获取 UserSig 失败');
-    return data.userSig;
-  }
-
-  function openSettingsSheet() {
-    settingsSheet.classList.add('open');
-    settingsBackdrop.classList.add('open');
-    settingsSheet.setAttribute('aria-hidden', 'false');
-  }
-
-  function closeSettingsSheet() {
-    settingsSheet.classList.remove('open');
-    settingsBackdrop.classList.remove('open');
-    settingsSheet.setAttribute('aria-hidden', 'true');
-  }
-
-  function openReviewModal() {
-    reviewModal.classList.add('open');
-    reviewBackdrop.classList.add('open');
-    reviewModal.setAttribute('aria-hidden', 'false');
-  }
-
-  function closeReviewModal() {
-    reviewModal.classList.remove('open');
-    reviewBackdrop.classList.remove('open');
-    reviewModal.setAttribute('aria-hidden', 'true');
-  }
-
-  async function startConnection(room) {
-    const userId = `student_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    currentStudentUserId = userId;
-    try {
-      setConnectionStatus('正在获取签名', 'Getting UserSig', 'pending');
-      const userSig = await getUserSig(userId, room);
-      setConnectionStatus('正在进入课堂', 'Joining Class', 'pending');
-      trtc = TRTC.create();
-      trtc.on(TRTC.EVENT.CUSTOM_MESSAGE, onCustomMessage);
-      if (TRTC.EVENT && TRTC.EVENT.REMOTE_AUDIO_AVAILABLE) {
-        trtc.on(TRTC.EVENT.REMOTE_AUDIO_AVAILABLE, async evt => {
-          const userId = evt?.userId || evt?.data?.userId || evt?.user?.userId;
-          if (userId) remoteAudioUsers.add(userId);
-          if (!teacherAudioEnabled) await syncRemoteAudioMuteState();
-        });
-      }
-      if (TRTC.EVENT && TRTC.EVENT.REMOTE_AUDIO_UNAVAILABLE) {
-        trtc.on(TRTC.EVENT.REMOTE_AUDIO_UNAVAILABLE, evt => {
-          const userId = evt?.userId || evt?.data?.userId || evt?.user?.userId;
-          if (userId) remoteAudioUsers.delete(userId);
-        });
-      }
-      await trtc.enterRoom({
-        sdkAppId: SDKAPPID,
-        roomId: parseInt(room, 10),
-        scene: 'rtc',
-        userId,
-        userSig,
-        autoReceiveAudio: false
-      });
-      setConnectionStatus('已连接课堂', 'Connected', 'connected');
-      ensureAudioObserver();
-      await syncRemoteAudioMuteState();
-      await reportLanguagePreference('join');
-    } catch (err) {
-      console.error('student connect failed:', err);
-      setConnectionStatus('连接失败', String(err?.message || err), 'error');
-    }
-  }
-
-  function onCustomMessage(event) {
-    const msg = decodeCustomMessageData(event.data);
-    if (!msg) return;
-    console.log('STUDENT CUSTOM_MESSAGE:', safeStringify(msg));
-
-    if (msg.cmd === 'translated_subtitle') {
-      const merged = {
-        roundId: String(msg.roundId || Date.now()),
-        source_text: msg.source_text || '',
-        translations: msg.translations || {},
-        ended: !!msg.end
-      };
-      currentSubtitle = merged;
-      renderCurrentSubtitle();
-      setConnectionStatus('已连接课堂', 'Receiving Subtitles', 'connected');
-      if (merged.ended) pushHistorySnapshot(merged);
-      return;
-    }
-
-    const normalized = normalizeSubtitleMessage(msg);
-    if (!normalized.isSubtitleLike) {
-      if (normalized.type === 10001) setConnectionStatus('已连接课堂', normalized.statusMessage || 'AI Status', 'connected');
-      if (normalized.type === 10030) setConnectionStatus('服务异常', normalized.statusMessage || 'AI Error', 'error');
-      return;
-    }
-    const merged = mergeSubtitleRound(subtitleRoundStore, normalized);
-    currentSubtitle = merged;
-    renderCurrentSubtitle();
-    setConnectionStatus('已连接课堂', 'Receiving Subtitles', 'connected');
-    if (merged.ended) pushHistorySnapshot(merged);
-  }
-
-  function reconnectCurrentRoom() {
-    if (!roomId) return;
-    location.reload();
-  }
-
-  confirmSessionBtn.addEventListener('click', () => {
-    const inputCode = normalizeRoomCode(roomCodeInput.value);
-    if (!inputCode) {
-      alert('请输入有效课程码');
-      return;
-    }
-    const url = new URL(location.href);
-    url.search = '';
-    url.searchParams.set('room', inputCode);
-    url.searchParams.set('code', inputCode);
-    location.href = url.toString();
+  return '';
+}
+async function renderCurrentSubtitle() {
+  sourceDiv.textContent = currentSubtitle.source_text || '等待字幕...';
+  const translated = await ensureSelectedTranslation(currentSubtitle);
+  nativeDiv.textContent = translated || '正在等待翻译...';
+}
+async function renderHistory() {
+  if (!historyList.length) { historyDiv.innerHTML = '<div class="history-empty">暂无历史记录</div>'; return; }
+  const cloned = historyList.slice();
+  for (const item of cloned.slice(0, 8)) await ensureSelectedTranslation(item);
+  historyDiv.innerHTML = cloned.map((item, index) => {
+    const translated = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
+    const level = Math.min(index, 4);
+    return `<div class="history-item level-${level}"><div class="history-source">${escapeHtml(item.source_text || item.source || '')}</div><div class="history-translation">${escapeHtml(translated || '正在等待翻译...')}</div><div class="history-time">${escapeHtml(item.timestamp || '')}</div></div>`;
+  }).join('');
+}
+function setReviewMode(mode) {
+  reviewMode = mode;
+  [[modeTeacher,'teacher'],[modeStudent,'student'],[modeDual,'dual']].forEach(([button, value]) => { button.className = 'btn ' + (value === mode ? 'btn-primary' : 'btn-soft'); });
+}
+function buildReviewText() {
+  if (!historyList.length) return '暂无课堂记录。';
+  const lines = historyList.slice().reverse().map(item => {
+    const teacher = item.source_text || item.source || '';
+    const student = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
+    if (reviewMode === 'teacher') return teacher;
+    if (reviewMode === 'student') return student || teacher;
+    return `老师: ${teacher}\n学生: ${student || '（暂无翻译）'}`;
   });
-  roomCodeInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') confirmSessionBtn.click();
-  });
-
-  toolbarToggle.addEventListener('click', openSettingsSheet);
-  toolbarHideBtn.addEventListener('click', closeSettingsSheet);
-  settingsBackdrop.addEventListener('click', closeSettingsSheet);
-  reviewBackdrop.addEventListener('click', closeReviewModal);
-  openReviewBtn.addEventListener('click', () => {
-    closeSettingsSheet();
-    openReviewModal();
-  });
-  closeReviewBtn.addEventListener('click', closeReviewModal);
-
-  langGrid.addEventListener('click', event => {
-    const button = event.target.closest('.lang-option');
-    if (!button) return;
-    pendingTargetLang = button.dataset.lang || selectedTargetLang;
-    renderLangChooser();
-  });
-
-  langConfirmBtn.addEventListener('click', () => {
-    selectedTargetLang = pendingTargetLang;
-    localStorage.setItem('student_lang', selectedTargetLang);
-    updateLanguageStatus();
-    renderCurrentSubtitle();
-    renderHistory();
-    setConnectionStatus('已切换语种', getLangLabel(selectedTargetLang), 'connected');
-    closeSettingsSheet();
-    reportLanguagePreference('confirm');
-  });
-
-  audioToggleBtn.addEventListener('click', () => {
-    teacherAudioEnabled = !teacherAudioEnabled;
-    updateAudioStatus();
-  });
-
-  copyLinkBtn.addEventListener('click', async () => {
-    try {
-      const url = new URL(location.href);
-      const code = normalizeRoomCode(roomId || roomCodeInput.value);
-      if (code) {
-        url.search = '';
-        url.searchParams.set('room', code);
-        url.searchParams.set('code', code);
-      }
-      await navigator.clipboard.writeText(url.toString());
-      alert('链接已复制');
-    } catch {
-      alert('复制失败，请手动复制');
-    }
-  });
-
-  reconnectBtn.addEventListener('click', reconnectCurrentRoom);
-  modeTeacher.addEventListener('click', () => setReviewMode('teacher'));
-  modeStudent.addEventListener('click', () => setReviewMode('student'));
-  modeDual.addEventListener('click', () => setReviewMode('dual'));
-  generateBtn.addEventListener('click', () => {
-    reviewText = buildReviewText();
-    previewContent.textContent = reviewText;
-    downloadBtn.disabled = !reviewText;
-  });
-  downloadBtn.addEventListener('click', downloadReview);
-
-  renderLangChooser();
-  renderHistory();
-  updateLanguageStatus();
-  updateAudioStatus();
-  setReviewMode('teacher');
-  renderCurrentSubtitle();
-
-  if (!roomId) {
-    sessionInputArea.classList.remove('hidden');
-    mainContent.style.display = 'none';
-  } else {
-    roomCodeInput.value = roomId;
-    sessionInputArea.classList.add('hidden');
-    mainContent.style.display = 'block';
-    startConnection(roomId);
+  return lines.join('\n\n');
+}
+function downloadReview() {
+  if (!reviewText) return;
+  const blob = new Blob([reviewText], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `class-review-${roomId || 'session'}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function openSettingsSheet() { settingsSheet.classList.add('open'); settingsBackdrop.classList.add('open'); settingsSheet.setAttribute('aria-hidden', 'false'); }
+function closeSettingsSheet() { settingsSheet.classList.remove('open'); settingsBackdrop.classList.remove('open'); settingsSheet.setAttribute('aria-hidden', 'true'); }
+function openReviewModal() { reviewModal.classList.add('open'); reviewBackdrop.classList.add('open'); reviewModal.setAttribute('aria-hidden', 'false'); }
+function closeReviewModal() { reviewModal.classList.remove('open'); reviewBackdrop.classList.remove('open'); reviewModal.setAttribute('aria-hidden', 'true'); }
+async function loadState() {
+  if (!roomId) return;
+  try {
+    const response = await fetch(`${CLASSROOM_STATE_URL}?roomId=${encodeURIComponent(roomId)}`);
+    const text = await response.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!response.ok) throw new Error(data?.error || `HTTP ${response.status}`);
+    if (data.error) throw new Error(data.error);
+    const state = data.data || { latest: null, history: [] };
+    currentSubtitle = state.latest || { source_text: '', translations: {} };
+    historyList = Array.isArray(state.history) ? state.history.slice() : [];
+    await renderCurrentSubtitle();
+    await renderHistory();
+    setConnectionStatus('已连接课堂', 'Connected', 'connected');
+  } catch (err) {
+    console.error('loadState failed:', err);
+    setConnectionStatus('连接失败', String(err?.message || err), 'error');
   }
+}
+function startPolling() { clearInterval(currentPollTimer); loadState(); currentPollTimer = setInterval(loadState, 800); }
+function reconnectCurrentRoom() { if (!roomId) return; startPolling(); }
+confirmSessionBtn.addEventListener('click', () => {
+  const inputCode = normalizeRoomCode(roomCodeInput.value);
+  if (!inputCode) { alert('请输入有效课程码'); return; }
+  const url = new URL(location.href); url.search = ''; url.searchParams.set('room', inputCode); url.searchParams.set('code', inputCode); location.href = url.toString();
+});
+roomCodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') confirmSessionBtn.click(); });
+toolbarToggle.addEventListener('click', openSettingsSheet);
+toolbarHideBtn.addEventListener('click', closeSettingsSheet);
+settingsBackdrop.addEventListener('click', closeSettingsSheet);
+reviewBackdrop.addEventListener('click', closeReviewModal);
+openReviewBtn.addEventListener('click', () => { closeSettingsSheet(); openReviewModal(); });
+closeReviewBtn.addEventListener('click', closeReviewModal);
+langGrid.addEventListener('click', event => {
+  const button = event.target.closest('.lang-option'); if (!button) return; pendingTargetLang = button.dataset.lang || selectedTargetLang; renderLangChooser();
+});
+langConfirmBtn.addEventListener('click', async () => {
+  selectedTargetLang = pendingTargetLang; localStorage.setItem('student_lang', selectedTargetLang); updateLanguageStatus(); await renderCurrentSubtitle(); await renderHistory(); setConnectionStatus('已切换语种', getLangLabel(selectedTargetLang), 'connected'); closeSettingsSheet();
+});
+audioToggleBtn.addEventListener('click', () => { alert('当前版本已移除教师音频，仅保留实时字幕。'); });
+copyLinkBtn.addEventListener('click', async () => {
+  try {
+    const url = new URL(location.href); const code = normalizeRoomCode(roomId || roomCodeInput.value); if (code) { url.search = ''; url.searchParams.set('room', code); url.searchParams.set('code', code); }
+    await navigator.clipboard.writeText(url.toString()); alert('链接已复制');
+  } catch { alert('复制失败，请手动复制'); }
+});
+reconnectBtn.addEventListener('click', reconnectCurrentRoom);
+modeTeacher.addEventListener('click', () => setReviewMode('teacher'));
+modeStudent.addEventListener('click', () => setReviewMode('student'));
+modeDual.addEventListener('click', () => setReviewMode('dual'));
+generateBtn.addEventListener('click', () => { reviewText = buildReviewText(); previewContent.textContent = reviewText; downloadBtn.disabled = !reviewText; });
+downloadBtn.addEventListener('click', downloadReview);
+renderLangChooser(); updateLanguageStatus(); updateAudioStatus(); setReviewMode('teacher'); sourceDiv.textContent = '等待字幕...'; nativeDiv.textContent = '正在等待翻译...';
+if (!roomId) { sessionInputArea.classList.remove('hidden'); mainContent.style.display = 'none'; } else { roomCodeInput.value = roomId; sessionInputArea.classList.add('hidden'); mainContent.style.display = 'block'; startPolling(); }
 </script>
+
 </body>
 </html>
