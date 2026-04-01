@@ -580,8 +580,11 @@ async function submitSubtitleState(data) {
     roomId: String(currentSession),
     teacherCode,
     sourceText: data.sourceText || '',
+    source_text: data.sourceText || '',
     translations: data.translations || {},
-    requestedLangs: getEffectiveTargetLanguages()
+    translation: data.translations || {},
+    requestedLangs: getEffectiveTargetLanguages(),
+    requested_langs: getEffectiveTargetLanguages()
   });
   console.log('CLASSROOM_SUBMIT_DONE');
 }
@@ -590,7 +593,7 @@ async function runTranslationForRound(roundId, segmentInfo) {
   const state = getRoundState(roundId);
   if (!segmentInfo || !segmentInfo.segmentText) return;
   if (state.inFlight) {
-    if (!state.pendingSegment || (segmentInfo.segmentText || '').length >= (state.pendingSegment.segmentText || '').length || segmentInfo.finalChunk) {
+    if (segmentInfo.finalChunk) {
       state.pendingSegment = segmentInfo;
     }
     return;
@@ -605,8 +608,6 @@ async function runTranslationForRound(roundId, segmentInfo) {
     state.lastTranslatedText = segmentInfo.segmentText;
     if (segmentInfo.finalChunk) {
       state.finalSent = true;
-    } else {
-      state.interimSent = true;
     }
     if (!isPaused) statusDiv.textContent = '▶ 上课中... 正在识别并提交字幕';
   } catch (err) {
@@ -641,6 +642,7 @@ function maybeTranslateSubtitle(roundId, sourceText, isFinal) {
     const elapsed = now - (state.lastTriggerAt || 0);
     if (addedChars < PRE_TRANSLATE_MIN_NEW_CHARS && elapsed < INTERIM_TRANSLATE_MIN_INTERVAL_MS) return;
     if (elapsed < INTERIM_TRANSLATE_MIN_INTERVAL_MS) return;
+    state.interimSent = true;
   }
 
   runTranslationForRound(roundId, segmentInfo);
