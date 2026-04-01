@@ -27,9 +27,16 @@
     }
 
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; }
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      overflow: hidden;
+    }
     body {
       margin: 0;
+      min-height: 100dvh;
+      overflow: hidden;
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: radial-gradient(circle at top, #102241 0%, var(--bg) 38%, #06101f 100%);
@@ -37,16 +44,20 @@
     }
 
     .page {
-      min-height: 100vh;
+      height: 100dvh;
+      min-height: 100dvh;
       padding: calc(12px + var(--safe-top)) 12px calc(84px + var(--safe-bottom));
+      overflow: hidden;
     }
 
     .wrap {
       max-width: 1160px;
+      height: 100%;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
       gap: 12px;
+      min-height: 0;
     }
 
     .shell,
@@ -143,7 +154,12 @@
     .btn-zh { font-size: clamp(13px, 2.6vw, 16px); font-weight: 860; letter-spacing: .01em; }
     .btn-en { font-size: clamp(10px, 1.9vw, 12px); font-weight: 700; opacity: .9; letter-spacing: .02em; }
 
-    .main-content { display: none; }
+    .main-content {
+      display: none;
+      flex: 1 1 auto;
+      min-height: 0;
+      flex-direction: column;
+    }
 
     .status-summary {
       padding: 12px 16px;
@@ -209,7 +225,9 @@
       border-radius: var(--r-lg);
       box-shadow: var(--shadow);
       padding: 10px;
-      min-height: calc(100vh - 220px);
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
     }
 
     .display-view.hidden-view { display: none !important; }
@@ -218,7 +236,8 @@
       display: grid;
       grid-template-rows: 2fr 3fr;
       gap: 8px;
-      min-height: calc(100vh - 240px);
+      height: 100%;
+      min-height: 0;
     }
 
     .compact-panel {
@@ -231,7 +250,8 @@
     }
 
     .history-view {
-      min-height: calc(100vh - 240px);
+      height: 100%;
+      min-height: 0;
       display: flex;
       flex-direction: column;
       border-radius: 24px;
@@ -351,6 +371,8 @@
       display: grid;
       grid-template-columns: 1fr;
       gap: 12px;
+      flex: 1 1 auto;
+      min-height: 0;
     }
 
     .hero-card {
@@ -461,9 +483,11 @@
 
     .history-list {
       overflow-y: auto;
+      overflow-x: hidden;
       padding-right: 4px;
       display: flex;
       flex-direction: column;
+      min-height: 0;
     }
     .history-list::-webkit-scrollbar,
     .sheet-body::-webkit-scrollbar,
@@ -745,7 +769,9 @@
 
     @media (orientation: landscape) {
       .page {
-        padding: calc(8px + var(--safe-top)) 10px calc(70px + var(--safe-bottom));
+        height: 100dvh;
+        min-height: 100dvh;
+        padding: calc(8px + var(--safe-top)) 10px calc(10px + var(--safe-bottom));
       }
       .wrap { gap: 10px; }
       .status-summary {
@@ -783,9 +809,9 @@
       .status-inline { gap: 1.8em; }
       .status-language-inline { font-size: 14px; }
       .mode-switch-bar { min-width: 420px; max-width: 660px; }
-      .display-shell { min-height: calc(100vh - 150px); }
+      .display-shell { height: 100%; min-height: 0; }
       .realtime-view,
-      .history-view { min-height: calc(100vh - 170px); }
+      .history-view { height: 100%; min-height: 0; }
       .hero-card {
         min-height: calc(100vh - 158px);
         padding: 12px;
@@ -862,7 +888,9 @@
 
     @media (orientation: landscape) and (max-height: 520px) {
       .page {
-        padding: calc(6px + var(--safe-top)) 8px calc(62px + var(--safe-bottom));
+        height: 100dvh;
+        min-height: 100dvh;
+        padding: calc(6px + var(--safe-top)) 8px calc(8px + var(--safe-bottom));
       }
       .status-summary { padding: 8px 12px; }
       .status-main-zh { font-size: 16px; }
@@ -877,9 +905,9 @@
         grid-template-columns: 1fr;
         gap: 10px;
       }
-      .display-shell { min-height: calc(100vh - 128px); padding: 8px; }
+      .display-shell { height: 100%; min-height: 0; padding: 8px; }
       .realtime-view,
-      .history-view { min-height: calc(100vh - 144px); }
+      .history-view { height: 100%; min-height: 0; }
       .hero-card {
         min-height: calc(100vh - 132px);
         padding: 10px;
@@ -939,8 +967,9 @@
     @media (orientation: landscape) and (max-width: 950px) {
       html, body { min-height: 100dvh; }
       .page {
+        height: 100dvh;
         min-height: 100dvh;
-        padding: calc(4px + var(--safe-top)) 6px calc(10px + var(--safe-bottom));
+        padding: calc(4px + var(--safe-top)) 6px calc(6px + var(--safe-bottom));
       }
       .wrap { gap: 6px; }
       .status-summary {
@@ -961,9 +990,9 @@
         grid-template-columns: 1fr;
         gap: 8px;
       }
-      .display-shell { min-height: calc(100dvh - 96px); padding: 8px; }
+      .display-shell { height: 100%; min-height: 0; padding: 8px; }
       .realtime-view,
-      .history-view { min-height: calc(100dvh - 112px); }
+      .history-view { height: 100%; min-height: 0; }
       .hero-card {
         min-height: calc(100dvh - 88px);
         padding: 8px;
@@ -1586,7 +1615,7 @@ generateBtn.addEventListener('click', async () => {
 });
 downloadBtn.addEventListener('click', downloadReview);
 renderLangChooser(); updateLanguageStatus(); setReviewMode('teacher'); setDisplayMode('realtime'); sourceDiv.textContent = '等待字幕...'; nativeDiv.textContent = '正在等待翻译...';
-if (!roomId) { sessionInputArea.classList.remove('hidden'); mainContent.style.display = 'none'; } else { roomCodeInput.value = roomId; sessionInputArea.classList.add('hidden'); mainContent.style.display = 'block'; startPolling(); }
+if (!roomId) { sessionInputArea.classList.remove('hidden'); mainContent.style.display = 'none'; } else { roomCodeInput.value = roomId; sessionInputArea.classList.add('hidden'); mainContent.style.display = 'flex'; startPolling(); }
 </script>
 
 </body>
