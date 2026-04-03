@@ -566,10 +566,10 @@ async function getAsrAuth(roomId) {
   if (!data.ok || !data.data || !data.data.url) throw new Error('获取 ASR 鉴权失败');
   return data.data;
 }
-async function translateSubtitleByFunction(sourceText, isFinal, targetLanguages) {
+async function translateSubtitleByFunction(sourceText, isFinal, targetLanguages, seqOverride) {
   const selectedLangs = (targetLanguages || getEffectiveTargetLanguages()).filter(lang => SUPPORTED_TRANSLATION_LANGS.includes(lang));
   if (!sourceText || !sourceText.trim()) return null;
-  const payload = { roomId: parseInt(currentSession, 10), speakerId: 'teacher', seq: ++subtitleSeq, sourceLang: 'zh-CN', sourceText: sourceText.trim(), targetLangs: selectedLangs.length ? selectedLangs : ['en'], isFinal: !!isFinal, ts: Date.now() };
+  const payload = { roomId: parseInt(currentSession, 10), speakerId: 'teacher', seq: Number(seqOverride) || ++subtitleSeq, sourceLang: 'zh-CN', sourceText: sourceText.trim(), targetLangs: selectedLangs.length ? selectedLangs : ['en'], isFinal: !!isFinal, ts: Date.now() };
   const result = await postJson(TRANSLATE_URL, payload);
   if (!result || !result.ok || !result.data) throw new Error('翻译函数返回异常: ' + JSON.stringify(result));
   return result.data;
@@ -579,10 +579,14 @@ async function submitSubtitleState(data) {
   await postJson(CLASSROOM_SUBMIT_URL, {
     roomId: String(currentSession),
     teacherCode,
+    seq: Number(data.seq || 0) || 0,
+    subtitleSeq: Number(data.seq || 0) || 0,
     sourceText: data.sourceText || '',
     source_text: data.sourceText || '',
     translations: data.translations || {},
     translation: data.translations || {},
+    translationPending: !!data.translationPending,
+    translation_pending: !!data.translationPending,
     requestedLangs: getEffectiveTargetLanguages(),
     requested_langs: getEffectiveTargetLanguages()
   });
@@ -600,12 +604,23 @@ async function runTranslationForRound(roundId, segmentInfo) {
   }
   state.inFlight = true;
   state.lastTriggerAt = Date.now();
+  const sharedSeq = ++subtitleSeq;
+  const sourceText = segmentInfo.segmentText.trim();
   try {
-    const translated = await translateSubtitleByFunction(segmentInfo.segmentText, true, getEffectiveTargetLanguages());
+    await submitSubtitleState({
+      seq: sharedSeq,
+      sourceText,
+      translations: {},
+      translationPending: true
+    });
+    if (!isPaused) statusDiv.textContent = '▶ 上课中... 原文已推送，正在翻译';
+    const translated = await translateSubtitleByFunction(sourceText, true, getEffectiveTargetLanguages(), sharedSeq);
+    translated.seq = sharedSeq;
+    translated.translationPending = false;
     await submitSubtitleState(translated);
-    pushTeacherHistorySnapshot({ sourceText: translated.sourceText || segmentInfo.segmentText });
+    pushTeacherHistorySnapshot({ sourceText: translated.sourceText || sourceText });
     state.committedText = (state.committedText || '') + (segmentInfo.rawSegment || segmentInfo.segmentText);
-    state.lastTranslatedText = segmentInfo.segmentText;
+    state.lastTranslatedText = sourceText;
     if (segmentInfo.finalChunk) {
       state.finalSent = true;
     }

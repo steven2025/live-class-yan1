@@ -1359,10 +1359,24 @@ function normalizeTranslations(value) {
 function normalizeSubtitleItem(item) {
   const obj = item || {};
   return {
+    seq: Number(obj.seq || obj.subtitleSeq || obj.sequence || 0) || 0,
     source_text: obj.source_text || obj.sourceText || obj.source || obj.text || '',
     translations: normalizeTranslations(obj.translations || obj.translation),
-    timestamp: obj.timestamp || obj.time || obj.createdAt || ''
+    timestamp: obj.timestamp || obj.time || obj.createdAt || '',
+    translationPending: !!(obj.translationPending || obj.translation_pending)
   };
+}
+function dedupeHistoryItems(items) {
+  const seen = new Set();
+  const result = [];
+  for (const item of items || []) {
+    if (!item || !item.source_text) continue;
+    const key = item.seq ? `seq:${item.seq}` : `txt:${item.source_text}|ts:${item.timestamp || ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(item);
+  }
+  return result;
 }
 function normalizeStatePayload(payload) {
   const root = (payload && payload.data) ? payload.data : (payload || {});
@@ -1371,19 +1385,20 @@ function normalizeStatePayload(payload) {
     ? root.history
     : (Array.isArray(root.items) ? root.items : (Array.isArray(root.records) ? root.records : []));
   return {
-    latest: latestRaw ? normalizeSubtitleItem(latestRaw) : { source_text: '', translations: {}, timestamp: '' },
-    history: historyRaw.map(normalizeSubtitleItem)
+    latest: latestRaw ? normalizeSubtitleItem(latestRaw) : { seq: 0, source_text: '', translations: {}, timestamp: '', translationPending: false },
+    history: dedupeHistoryItems(historyRaw.map(normalizeSubtitleItem))
   };
 }
 async function ensureSelectedTranslation(item) {
   if (!item || !item.source_text) return '';
   const existing = getPreferredTranslation(item.translations);
   if (existing) return existing;
+  if (item.translationPending) return '';
   try {
     const result = await postJson(TRANSLATE_URL, {
       roomId: parseInt(roomId || '0', 10),
       speakerId: 'student',
-      seq: ++translateSeq,
+      seq: item.seq || ++translateSeq,
       sourceLang: 'zh-CN',
       sourceText: item.source_text,
       targetLangs: [selectedTargetLang],
@@ -1392,6 +1407,7 @@ async function ensureSelectedTranslation(item) {
     });
     if (result.ok && result.data && result.data.translations && result.data.translations[selectedTargetLang]) {
       item.translations = Object.assign({}, item.translations || {}, result.data.translations);
+      item.translationPending = false;
       return item.translations[selectedTargetLang];
     }
   } catch (err) {
@@ -1406,7 +1422,7 @@ async function renderCurrentSubtitle() {
 }
 async function renderHistory() {
   if (!historyList.length) { historyDiv.innerHTML = '<div class="history-empty">暂无历史记录</div>'; return; }
-  const cloned = historyList.slice();
+  const cloned = dedupeHistoryItems(historyList.slice());
   for (const item of cloned.slice(0, 8)) await ensureSelectedTranslation(item);
   historyDiv.innerHTML = cloned.map((item, index) => {
     const translated = item.translations?.[selectedTargetLang] || Object.values(item.translations || {})[0] || item.translation || '';
