@@ -264,9 +264,9 @@ const LANGUAGE_OPTIONS = [
   { value: 'it', label: 'Italiano' },
   { value: 'ar', label: 'العربية' }
 ];
-const PRE_TRANSLATE_MIN_NEW_CHARS = 5;
-const INTERIM_TRANSLATE_MIN_INTERVAL_MS = 1200;
-const MIN_INTERIM_SEGMENT_CHARS = 12;
+const PRE_TRANSLATE_MIN_NEW_CHARS = 4;
+const INTERIM_TRANSLATE_MIN_INTERVAL_MS = 900;
+const MIN_INTERIM_SEGMENT_CHARS = 10;
 
 let isTeaching = false;
 let isPaused = false;
@@ -468,18 +468,18 @@ function extractSegmentForBroadcast(cleanText, state, isFinal) {
   const trimmed = remainder.trim();
   if (!trimmed) return null;
   if (isFinal) return { rawSegment: remainder, segmentText: trimmed, finalChunk: true };
-  const strongIdx = findLastBoundaryIndex(remainder, /[。！？!?；;]/g, 7);
+  const strongIdx = findLastBoundaryIndex(remainder, /[。！？!?；;]/g, 5);
   if (strongIdx >= 0) {
     const raw = remainder.slice(0, strongIdx + 1);
     if (raw.trim().length >= 7) return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
   }
-  const mediumIdx = findLastBoundaryIndex(remainder, /[，,、：:]/g, 12);
-  if (mediumIdx >= 0 && trimmed.length >= 18) {
+  const mediumIdx = findLastBoundaryIndex(remainder, /[，,、：:]/g, 8);
+  if (mediumIdx >= 0 && trimmed.length >= 14) {
     const raw = remainder.slice(0, mediumIdx + 1);
     return { rawSegment: raw, segmentText: raw.trim(), finalChunk: false };
   }
-  if (trimmed.length >= 32) {
-    const hardRaw = remainder.slice(0, 24);
+  if (trimmed.length >= 26) {
+    const hardRaw = remainder.slice(0, 18);
     return { rawSegment: hardRaw, segmentText: hardRaw.trim(), finalChunk: false };
   }
   return null;
@@ -566,10 +566,10 @@ async function getAsrAuth(roomId) {
   if (!data.ok || !data.data || !data.data.url) throw new Error('获取 ASR 鉴权失败');
   return data.data;
 }
-async function translateSubtitleByFunction(sourceText, isFinal, targetLanguages, seqOverride) {
+async function translateSubtitleByFunction(sourceText, isFinal, targetLanguages) {
   const selectedLangs = (targetLanguages || getEffectiveTargetLanguages()).filter(lang => SUPPORTED_TRANSLATION_LANGS.includes(lang));
   if (!sourceText || !sourceText.trim()) return null;
-  const payload = { roomId: parseInt(currentSession, 10), speakerId: 'teacher', seq: Number(seqOverride) || ++subtitleSeq, sourceLang: 'zh-CN', sourceText: sourceText.trim(), targetLangs: selectedLangs.length ? selectedLangs : ['en'], isFinal: !!isFinal, ts: Date.now() };
+  const payload = { roomId: parseInt(currentSession, 10), speakerId: 'teacher', seq: ++subtitleSeq, sourceLang: 'zh-CN', sourceText: sourceText.trim(), targetLangs: selectedLangs.length ? selectedLangs : ['en'], isFinal: !!isFinal, ts: Date.now() };
   const result = await postJson(TRANSLATE_URL, payload);
   if (!result || !result.ok || !result.data) throw new Error('翻译函数返回异常: ' + JSON.stringify(result));
   return result.data;
@@ -579,14 +579,10 @@ async function submitSubtitleState(data) {
   await postJson(CLASSROOM_SUBMIT_URL, {
     roomId: String(currentSession),
     teacherCode,
-    seq: Number(data.seq || 0) || 0,
-    subtitleSeq: Number(data.seq || 0) || 0,
     sourceText: data.sourceText || '',
     source_text: data.sourceText || '',
     translations: data.translations || {},
     translation: data.translations || {},
-    translationPending: !!data.translationPending,
-    translation_pending: !!data.translationPending,
     requestedLangs: getEffectiveTargetLanguages(),
     requested_langs: getEffectiveTargetLanguages()
   });
@@ -604,23 +600,12 @@ async function runTranslationForRound(roundId, segmentInfo) {
   }
   state.inFlight = true;
   state.lastTriggerAt = Date.now();
-  const sharedSeq = ++subtitleSeq;
-  const sourceText = segmentInfo.segmentText.trim();
   try {
-    await submitSubtitleState({
-      seq: sharedSeq,
-      sourceText,
-      translations: {},
-      translationPending: true
-    });
-    if (!isPaused) statusDiv.textContent = '▶ 上课中... 原文已推送，正在翻译';
-    const translated = await translateSubtitleByFunction(sourceText, true, getEffectiveTargetLanguages(), sharedSeq);
-    translated.seq = sharedSeq;
-    translated.translationPending = false;
+    const translated = await translateSubtitleByFunction(segmentInfo.segmentText, true, getEffectiveTargetLanguages());
     await submitSubtitleState(translated);
-    pushTeacherHistorySnapshot({ sourceText: translated.sourceText || sourceText });
+    pushTeacherHistorySnapshot({ sourceText: translated.sourceText || segmentInfo.segmentText });
     state.committedText = (state.committedText || '') + (segmentInfo.rawSegment || segmentInfo.segmentText);
-    state.lastTranslatedText = sourceText;
+    state.lastTranslatedText = segmentInfo.segmentText;
     if (segmentInfo.finalChunk) {
       state.finalSent = true;
     }
@@ -671,7 +656,7 @@ function resetSilenceTimer() {
       lastPartialText = '';
       renderCurrentTeacherSubtitle();
     }
-  }, 2200);
+  }, 1400);
 }
 function concatUint8(a, b) {
   const out = new Uint8Array(a.length + b.length);
